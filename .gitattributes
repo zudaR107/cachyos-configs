@@ -1,0 +1,29 @@
+# Git attributes for cachyos-configs
+# Location: <repo-root>/.gitattributes
+# Normalizes line endings and improves diffs for common config formats.
+
+# Always use LF in the repository.
+* text=auto eol=lf
+
+# Treat these files as text explicitly.
+*.md      text eol=lf
+*.txt     text eol=lf
+*.toml    text eol=lf
+*.ini     text eol=lf
+*.conf    text eol=lf
+*.kdl     text eol=lf
+*.fish    text eol=lf
+*.vim     text eol=lf
+*.js      text eol=lf
+*.json    text eol=lf
+*.jsonc   text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+
+# Make diffs more readable.
+*.toml    diff=toml
+*.ini     diff=ini
+*.conf    diff=ini
+*.json    diff=json
+*.jsonc   diff=json
+*.md      diff=markdown
