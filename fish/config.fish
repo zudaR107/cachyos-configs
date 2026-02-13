@@ -67,6 +67,8 @@ abbr -a of 'openocd -f flash/script.cfg -f flash/flash.ocd'
 abbr -a oe 'openocd -f flash/script.cfg -f flash/erase.ocd'
 abbr -a m  'make -j8'
 abbr -a mc 'make clean'
+abbr -a lg 'lazygit'
+abbr -a g  'git'
 
 # Start ssh-agent if no agent socket is available.
 if not set -q SSH_AUTH_SOCK
