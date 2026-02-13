@@ -1,0 +1,193 @@
+# Lint workflow for cachyos-configs.
+# Location: .github/workflows/lint.yml
+
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fish shellcheck
+          npm install --silent --no-save --no-package-lock jsonc-parser
+
+      - name: Validate JSON and TOML
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import sys
+          from pathlib import Path
+
+          try:
+              import tomllib  # py3.11+
+          except Exception as e:
+              print(f"tomllib not available: {e}", file=sys.stderr)
+              sys.exit(1)
+
+          ROOT = Path(".").resolve()
+          SKIP_DIRS = {".git", "node_modules"}
+
+          def iter_files(ext: str):
+              for p in ROOT.rglob(f"*{ext}"):
+                  if any(part in SKIP_DIRS for part in p.parts):
+                      continue
+                  if not p.is_file():
+                      continue
+                  yield p
+
+          errors = 0
+
+          # Strict JSON
+          for p in iter_files(".json"):
+              try:
+                  json.loads(p.read_text(encoding="utf-8"))
+              except Exception as e:
+                  errors += 1
+                  print(f"[json] {p}: {e}")
+
+          # TOML parse check
+          for p in iter_files(".toml"):
+              try:
+                  tomllib.loads(p.read_text(encoding="utf-8"))
+              except Exception as e:
+                  errors += 1
+                  print(f"[toml] {p}: {e}")
+
+          if errors:
+              print(f"Failed: {errors} file(s)")
+              sys.exit(1)
+
+          print("OK: JSON and TOML")
+          PY
+
+      - name: Validate JSONC
+        run: |
+          node - <<'JS'
+          const fs = require("fs");
+          const path = require("path");
+          const { parse, ParseErrorCode } = require("jsonc-parser");
+
+          const ROOT = process.cwd();
+          const SKIP = new Set([".git", "node_modules"]);
+
+          function* walk(dir) {
+            for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+              if (SKIP.has(ent.name)) continue;
+              const p = path.join(dir, ent.name);
+              if (ent.isDirectory()) yield* walk(p);
+              else yield p;
+            }
+          }
+
+          const files = [];
+          for (const p of walk(ROOT)) {
+            if (p.endsWith(".jsonc")) files.push(p);
+          }
+
+          let errors = 0;
+
+          for (const p of files) {
+            const text = fs.readFileSync(p, "utf8");
+            const parseErrors = [];
+            parse(text, parseErrors, { allowTrailingComma: true });
+
+            if (parseErrors.length) {
+              errors++;
+              console.error(`[jsonc] ${p}`);
+              for (const err of parseErrors) {
+                const code = ParseErrorCode[err.error] ?? err.error;
+                console.error(`  - offset=${err.offset} length=${err.length} error=${code}`);
+              }
+            }
+          }
+
+          if (errors) process.exit(1);
+          console.log(`OK: JSONC (${files.length} file(s))`);
+          JS
+
+      - name: Lint Fish (syntax + formatting)
+        run: |
+          find fish -name '*.fish' -print0 | xargs -0 -n1 fish -n
+          find fish -name '*.fish' -print0 | xargs -0 fish_indent --check
+
+      - name: Lint Shell scripts (if present)
+        run: |
+          if ls scripts/*.sh >/dev/null 2>&1; then
+            shellcheck scripts/*.sh
+            bash -n scripts/*.sh
+          else
+            echo "No scripts/*.sh found, skipping."
+          fi
+
+      - name: Whitespace & line endings (CRLF / trailing spaces)
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import sys
+          from pathlib import Path
+
+          ROOT = Path(".").resolve()
+          SKIP_DIRS = {".git", "node_modules"}
+
+          def is_skipped(p: Path) -> bool:
+              return any(part in SKIP_DIRS for part in p.parts)
+
+          bad = 0
+          for p in ROOT.rglob("*"):
+              if is_skipped(p) or not p.is_file():
+                  continue
+              # best-effort: treat as text, skip binary-ish files
+              try:
+                  data = p.read_bytes()
+              except Exception:
+                  continue
+              if b"\x00" in data:
+                  continue
+
+              text = data.decode("utf-8", errors="strict")
+
+              if "\r\n" in text or "\r" in text:
+                  bad += 1
+                  print(f"[eol] {p}: contains CRLF/CR")
+
+              # ignore markdown trailing whitespace rule (often used for line breaks)
+              if p.suffix.lower() != ".md":
+                  for i, line in enumerate(text.split("\n"), start=1):
+                      if line.endswith(" ") or line.endswith("\t"):
+                          bad += 1
+                          print(f"[ws] {p}:{i}: trailing whitespace")
+                          break
+
+          if bad:
+              print(f"Failed: {bad} issue(s)")
+              sys.exit(1)
+
+          print("OK: whitespace / EOL")
+          PY
