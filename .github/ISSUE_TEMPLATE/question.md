@@ -1,9 +1,9 @@
 ---
-name: Question
-about: Ask a usage question about these configs.
-title: "question: "
-labels: ["question"]
-assignees: []
+name: Question  
+about: Ask a usage question about these configs.  
+title: "question: "  
+labels: ["question"]  
+assignees: []  
 -------------
 
 ## Question

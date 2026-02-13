@@ -1,9 +1,9 @@
 ---
-name: Bug report
-about: Something in these configs does not work as expected.
-title: "bug: "
-labels: ["bug"]
-assignees: []
+name: Bug report  
+about: Something in these configs does not work as expected.  
+title: "bug: "  
+labels: ["bug"]  
+assignees: []  
 -------------
 
 ## Summary

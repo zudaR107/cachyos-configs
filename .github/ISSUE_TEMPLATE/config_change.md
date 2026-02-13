@@ -1,9 +1,9 @@
 ---
-name: Config change request
-about: Suggest an improvement or change to an existing config.
-title: "enhancement: "
-labels: ["enhancement"]
-assignees: []
+name: Config change request  
+about: Suggest an improvement or change to an existing config.  
+title: "enhancement: "  
+labels: ["enhancement"]  
+assignees: []  
 -------------
 
 ## Goal
