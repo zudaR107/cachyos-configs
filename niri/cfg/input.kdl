@@ -1,0 +1,33 @@
+// Niri input configuration.
+// Location: ~/.config/niri/cfg/input.kdl
+// Documentation: https://github.com/YaLTeR/niri/wiki/Configuration:-Input
+
+input {
+    keyboard {
+        xkb {
+            // Keyboard layouts order.
+            layout "us,ru" // Use the American keyboard layout
+            // XKB options: Alt+Space layout toggle and Right Alt as Compose.
+            options "grp:alt_space_toggle,compose:ralt"
+        }
+        // Enable Num Lock on startup.
+        numlock
+    }
+
+    touchpad {
+        // Enable tap-to-click.
+        tap
+        // Enable natural (reverse) scrolling.
+        natural-scroll
+    }
+
+    mouse {
+        // Pointer acceleration tuning.
+        accel-speed -0.2
+        // Pointer acceleration profile.
+        accel-profile "adaptive"
+    }
+
+    // Focus windows when the pointer enters them.
+    focus-follows-mouse
+}

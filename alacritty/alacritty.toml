@@ -1,0 +1,238 @@
+# Alacritty configuration (CachyOS)
+# Location: ~/.config/alacritty/alacritty.toml
+
+[env]
+# Default terminal type reported to applications.
+TERM = "xterm-256color"
+# Disable automatic X11 scaling via winit (use explicit DPI/scaling in the compositor/system).
+WINIT_X11_SCALE_FACTOR = "1"
+
+[window]
+# Window title shown by the window manager.
+title = "Alacritty@CachyOS"
+# Window decorations mode.
+decorations = "full"
+# Preferred decoration theme variant (if supported by the compositor/WM).
+decorations_theme_variant = "Dark"
+# Window background opacity (1.0 = fully opaque).
+opacity = 1.0
+
+# Use fixed padding (configured below).
+dynamic_padding = false
+
+[window.padding]
+# Inner window padding in pixels.
+x = 25
+y = 25
+
+[window.dimensions]
+# Initial window size in terminal cells.
+columns = 100
+lines = 30
+
+[window.class]
+# X11/Wayland window class (instance/general) for WM rules.
+instance = "Alacritty"
+general = "Alacritty"
+
+[scrolling]
+# Scrollback buffer size (number of lines kept in history).
+history = 10000
+# Scroll multiplier for mouse wheel / trackpad.
+multiplier = 3
+
+[colors]
+# Render bold text using bright variants when applicable.
+draw_bold_text_with_bright_colors = true
+
+[colors.primary]
+# Default foreground/background colors.
+foreground = "0x575279"
+background = "0xfaf4ed"
+
+[colors.selection]
+# Selection colors.
+text = "0x575279"
+background = "0xdfdad9"
+
+[colors.cursor]
+# Cursor colors.
+text = "0x575279"
+cursor = "0xcecacd"
+
+[colors.normal]
+# Normal ANSI color palette.
+black   = "0xf2e9e1"
+red     = "0xb4637a"
+green   = "0x286983"
+yellow  = "0xea9d34"
+blue    = "0x56949f"
+magenta = "0x907aa9"
+cyan    = "0xd7827e"
+white   = "0x575279"
+
+[colors.bright]
+# Bright ANSI color palette.
+black   = "0x9893a5"
+red     = "0xb4637a"
+green   = "0x286983"
+yellow  = "0xea9d34"
+blue    = "0x56949f"
+magenta = "0x907aa9"
+cyan    = "0xd7827e"
+white   = "0x575279"
+
+[font]
+# Font size in points.
+size = 18.0
+
+[font.normal]
+# Primary font (used for regular text).
+family = "Ubuntu Mono"
+style = "Bold"
+
+[font.bold]
+# Font used when applications request bold text.
+family = "Ubuntu Mono"
+style = "Italic"
+
+[font.italic]
+# Font used when applications request italic text.
+family = "Ubuntu Mono"
+style = "Italic"
+
+[font.bold_italic]
+# Font used when applications request bold+italic text.
+family = "Ubuntu Mono"
+style = "Bold Italic"
+
+[selection]
+# Characters that delimit semantic selection (double-click word selection).
+semantic_escape_chars = ",│`|:\"' ()[]{}<>\t"
+# Copy selection to the clipboard automatically.
+save_to_clipboard = true
+
+[cursor]
+# Cursor rendering settings.
+style = "Underline"
+vi_mode_style = "None"
+unfocused_hollow = true
+thickness = 0.15
+
+[mouse]
+# Hide mouse cursor while typing.
+hide_when_typing = true
+
+[[mouse.bindings]]
+# Middle click pastes the primary selection.
+mouse = "Middle"
+action = "PasteSelection"
+
+[keyboard]
+# Keyboard shortcuts.
+
+[[keyboard.bindings]]
+# Copy to clipboard.
+key = "C"
+mods = "Control|Shift"
+action = "Copy"
+
+[[keyboard.bindings]]
+# Paste from clipboard.
+key = "V"
+mods = "Control|Shift"
+action = "Paste"
+
+[[keyboard.bindings]]
+# Send SIGINT (ETX, ^C) to the application.
+key = "C"
+mods = "Control"
+chars = "\u0003"
+
+[[keyboard.bindings]]
+# Send EOT (EOF, ^D) to the application.
+key = "D"
+mods = "Control"
+chars = "\u0004"
+
+[[keyboard.bindings]]
+# Paste from clipboard (dedicated key).
+key = "Paste"
+action = "Paste"
+
+[[keyboard.bindings]]
+# Copy to clipboard (dedicated key).
+key = "Copy"
+action = "Copy"
+
+[[keyboard.bindings]]
+# Clear Alacritty's log notifications.
+key = "L"
+mods = "Control"
+action = "ClearLogNotice"
+
+[[keyboard.bindings]]
+# Send form feed (^L) to clear the terminal (when not in Vi mode).
+key = "L"
+mods = "Control"
+mode = "~Vi"
+chars = "\f"
+
+[[keyboard.bindings]]
+# Scroll one page up in the scrollback (when Alt mode is not active).
+key = "PageUp"
+mods = "Shift"
+mode = "~Alt"
+action = "ScrollPageUp"
+
+[[keyboard.bindings]]
+# Scroll one page down in the scrollback (when Alt mode is not active).
+key = "PageDown"
+mods = "Shift"
+mode = "~Alt"
+action = "ScrollPageDown"
+
+[[keyboard.bindings]]
+# Jump to the top of the scrollback (when Alt mode is not active).
+key = "Home"
+mods = "Shift"
+mode = "~Alt"
+action = "ScrollToTop"
+
+[[keyboard.bindings]]
+# Jump to the bottom of the scrollback (when Alt mode is not active).
+key = "End"
+mods = "Shift"
+mode = "~Alt"
+action = "ScrollToBottom"
+
+[[keyboard.bindings]]
+# Search forward in the scrollback.
+key = "F"
+mods = "Control|Shift"
+action = "SearchForward"
+
+[[keyboard.bindings]]
+# Search backward in the scrollback.
+key = "B"
+mods = "Control|Shift"
+action = "SearchBackward"
+
+[[keyboard.bindings]]
+# Clear selection in Vi mode.
+key = "C"
+mods = "Control|Shift"
+mode = "Vi"
+action = "ClearSelection"
+
+[[keyboard.bindings]]
+# Reset font size to the configured default.
+key = "Key0"
+mods = "Control"
+action = "ResetFontSize"
+
+[general]
+# Reload configuration automatically when the file changes.
+live_config_reload = true
+# Do not override the shell's working directory.
+working_directory = "None"

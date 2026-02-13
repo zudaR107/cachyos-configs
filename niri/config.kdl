@@ -1,0 +1,11 @@
+// Niri main configuration entrypoint.
+// Location: ~/.config/niri/config.kdl
+// This file composes the configuration from per-topic includes.
+
+include "./cfg/autostart.kdl"
+include "./cfg/keybinds.kdl"
+include "./cfg/input.kdl"
+include "./cfg/display.kdl"
+include "./cfg/layout.kdl"
+include "./cfg/rules.kdl"
+include "./cfg/misc.kdl"

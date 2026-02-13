@@ -1,0 +1,35 @@
+// Niri miscellaneous configuration.
+// Location: ~/.config/niri/cfg/misc.kdl
+// Documentation: https://github.com/YaLTeR/niri/wiki/Configuration
+
+prefer-no-csd
+screenshot-path null
+
+environment {
+    // Electron: enable Wayland where supported.
+    ELECTRON_OZONE_PLATFORM_HINT "auto"
+
+    // Qt: force Wayland backend.
+    QT_QPA_PLATFORM "wayland"
+
+    // Qt: disable client-side decorations on Wayland.
+    QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
+
+    // Session identification for Wayland clients.
+    XDG_SESSION_TYPE "wayland"
+    XDG_CURRENT_DESKTOP "niri"
+
+    // Qt platform theme selection.
+    //QT_QPA_PLATFORMTHEME "gtk3"
+    QT_QPA_PLATFORMTHEME "qt6ct"
+}
+
+debug {
+    // Allow window activation/notification actions for clients using XDG activation.
+    honor-xdg-activation-with-invalid-serial
+}
+
+hotkey-overlay {
+   // Do not show the hotkey overlay automatically at startup.
+   skip-at-startup
+}

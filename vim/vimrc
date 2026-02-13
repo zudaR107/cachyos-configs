@@ -1,0 +1,15 @@
+" Vim user configuration entrypoint.
+" Location: ~/.config/vim/vimrc
+" This file loads the HyDE-managed defaults and applies user overrides below.
+
+let s:VIM_DIR = fnamemodify($MYVIMRC, ':h')
+execute 'source ' . s:VIM_DIR . '/hyde.vim'
+
+" User overrides (optional).
+"colorscheme zaibatsu " Built-in colorscheme override.
+
+" Key mappings (optional).
+"inoremap <C-c> <Esc>
+"nnoremap <leader>ff :w<CR>
+"nnoremap ; :
+"vnoremap ; :

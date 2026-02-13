@@ -1,0 +1,48 @@
+{
+  // UI: hide the menu bar by default; show it with Alt.
+  "window.menuBarVisibility": "toggle",
+
+  // Editor: remove the vertical scrollbar.
+  "editor.scrollbar.vertical": "hidden",
+  "editor.scrollbar.verticalScrollbarSize": 0,
+
+  // Security: workspace trust behavior for untrusted files.
+  "security.workspace.trust.untrustedFiles": "newWindow",
+  "security.workspace.trust.startupPrompt": "never",
+  "security.workspace.trust.enabled": true,
+
+  // Extensions: do not update extensions automatically.
+  "extensions.autoUpdate": false,
+
+  // Terminal: external terminal executable on Linux.
+  "terminal.external.linuxExec": "foot",
+
+  // Terminal: show terminal entries in Explorer and Source Control views.
+  "terminal.explorerKind": "both",
+  "terminal.sourceControlRepositoriesKind": "both",
+
+  // Privacy: disable telemetry.
+  "telemetry.telemetryLevel": "off",
+
+  // Editor: disable font ligatures.
+  "editor.fontLigatures": false,
+
+  // Editor: font rendering and sizing.
+  "editor.fontFamily": "'Ubuntu Mono', 'monospace', 'Droid Sans Mono', 'Courier New'",
+  "editor.fontSize": 26,
+  "editor.fontWeight": "bold",
+  "editor.fontVariations": false,
+
+  // Explorer: do not ask for confirmation when deleting files.
+  "explorer.confirmDelete": false,
+
+  // Git: do not auto-detect repositories in parent directories.
+  "git.openRepositoryInParentFolders": "never",
+
+  // Editor: do not warn about invisible or ambiguous Unicode characters.
+  "editor.unicodeHighlight.invisibleCharacters": false,
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+
+  // Workbench: active color theme.
+  "workbench.colorTheme": "Solarized Light"
+}

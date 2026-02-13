@@ -1,0 +1,16 @@
+# Firefox extensions list
+# One add-on per line.
+# Format: "<Name> (<version>)"
+
+"Form Autofill (1.0.1)"
+"New Tab (140.0.0)"
+"Picture-In-Picture (1.0.0)"
+"Add-ons Search Detection (2.0.0)"
+"Web Compatibility Interventions (140.8.0)"
+"System theme — auto (1.4.1)"
+"Light (1.3.2)"
+"Dark (1.3.3)"
+"Firefox Alpenglow (1.5)"
+"TWP - Translate Web Pages (10.1.1.1)"
+"FoxyProxy (9.2)"
+"AdGuard AdBlocker (5.1.139)"
