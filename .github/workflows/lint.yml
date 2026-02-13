@@ -132,9 +132,18 @@ jobs:
           console.log(`OK: JSONC (${files.length} file(s))`);
           JS
 
-      - name: Lint Fish (syntax + formatting)
+      - name: Lint Fish (syntax)
         run: |
-          find fish -name '*.fish' -print0 | xargs -0 -n1 fish -n
+          set -euo pipefail
+          while IFS= read -r -d '' f; do
+            echo "::group::fish -n $f"
+            fish -n "$f"
+            echo "::endgroup::"
+          done < <(find fish -name '*.fish' -print0)
+
+      - name: Lint Fish (format)
+        run: |
+          set -euo pipefail
           find fish -name '*.fish' -print0 | xargs -0 fish_indent --check
 
       - name: Lint Shell scripts (if present)
