@@ -133,17 +133,16 @@ jobs:
           JS
 
       - name: Lint Fish (syntax)
+        shell: bash
         run: |
           set -euo pipefail
           while IFS= read -r -d '' f; do
-            echo "::group::fish -n $f"
+            echo "==> $f"
             fish -n "$f"
-            echo "::endgroup::"
           done < <(find fish -name '*.fish' -print0)
 
       - name: Lint Fish (format)
         run: |
-          set -euo pipefail
           find fish -name '*.fish' -print0 | xargs -0 fish_indent --check
 
       - name: Lint Shell scripts (if present)
