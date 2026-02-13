@@ -7,6 +7,7 @@
 # Code - OSS and Firefox require manual steps (printed at the end).
 
 set -euo pipefail
+IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
@@ -53,12 +54,20 @@ EOF
 }
 
 log() { printf '%s\n' "$*"; }
-run() {
+
+# Print a command in a shell-safe way and run it (unless dry-run).
+run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    log "[dry-run] $*"
-  else
-    eval "$@"
+    printf '[dry-run] '
+    printf '%q ' "$@"
+    printf '\n'
+    return 0
   fi
+
+  printf '+ '
+  printf '%q ' "$@"
+  printf '\n'
+  "$@"
 }
 
 die() { log "Error: $*"; exit 1; }
@@ -105,7 +114,7 @@ timestamp() { date +"%Y%m%d-%H%M%S"; }
 backup_path_init() {
   local ts
   ts="$(timestamp)"
-  echo "${BACKUP_BASE}/${ts}"
+  printf '%s/%s\n' "$BACKUP_BASE" "$ts"
 }
 
 backup_one() {
@@ -113,17 +122,18 @@ backup_one() {
   local name="$2"
   local backup_dir="$3"
 
+  # -e does not match broken symlinks, so also check -L
   [[ -e "$dest" || -L "$dest" ]] || return 0
 
   if [[ "$NO_BACKUP" -eq 1 ]]; then
     log " - remove: $dest"
-    run "rm -rf -- \"${dest}\""
+    run_cmd rm -rf -- "$dest"
     return 0
   fi
 
-  run "mkdir -p -- \"${backup_dir}\""
+  run_cmd mkdir -p -- "$backup_dir"
   log " - backup: $dest -> ${backup_dir}/${name}"
-  run "mv -- \"${dest}\" \"${backup_dir}/${name}\""
+  run_cmd mv -- "$dest" "${backup_dir}/${name}"
 }
 
 install_one() {
@@ -136,16 +146,16 @@ install_one() {
   log "Install: ${name}"
   backup_one "$dest" "$name" "$BACKUP_DIR"
 
-  run "mkdir -p -- \"${XDG_CONFIG_HOME}\""
+  run_cmd mkdir -p -- "$XDG_CONFIG_HOME"
 
   case "$MODE" in
     symlink)
       log " - link:  $dest -> $src"
-      run "ln -sfn -- \"${src}\" \"${dest}\""
+      run_cmd ln -sfn -- "$src" "$dest"
       ;;
     copy)
       log " - copy:  $src -> $dest"
-      run "cp -a -- \"${src}\" \"${dest}\""
+      run_cmd cp -a -- "$src" "$dest"
       ;;
   esac
 }
@@ -159,7 +169,7 @@ Manual steps (not installed by this script)
 1) Code - OSS
 
 Files in repo:
-  - "${REPO_ROOT}/Code - OSS/settings.json"
+  - "${REPO_ROOT}/Code - OSS/settings.jsonc"     (JSONC in repo; comments allowed)
   - "${REPO_ROOT}/Code - OSS/extensions.txt"
 
 Typical settings path on Linux:
@@ -168,12 +178,12 @@ Typical settings path on Linux:
 
 Apply settings (create dirs if needed):
   mkdir -p "\$XDG_CONFIG_HOME/Code - OSS/User"
-  cp -v "${REPO_ROOT}/Code - OSS/settings.json" "\$XDG_CONFIG_HOME/Code - OSS/User/settings.json"
+  cp -v "${REPO_ROOT}/Code - OSS/settings.jsonc" "\$XDG_CONFIG_HOME/Code - OSS/User/settings.json"
 
 Install extensions from list (choose your binary: code-oss or code):
   while IFS= read -r ext; do
     [ -z "\$ext" ] && continue
-    code-oss --install-extension "\$ext" || code --install-extension "\$ext"
+    code-oss --install-extension "\$ext" 2>/dev/null || code --install-extension "\$ext"
   done < "${REPO_ROOT}/Code - OSS/extensions.txt"
 
 2) Firefox (user.js)
@@ -198,9 +208,8 @@ EOF
 main() {
   parse_args "$@"
 
-  [[ -d "$XDG_CONFIG_HOME" ]] || run "mkdir -p -- \"${XDG_CONFIG_HOME}\""
-
   BACKUP_DIR="$(backup_path_init)"
+
   log "Repo:        $REPO_ROOT"
   log "Config dir:  $XDG_CONFIG_HOME"
   log "Mode:        $MODE"
