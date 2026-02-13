@@ -2,7 +2,7 @@
 
 A small, public-friendly set of **CachyOS** desktop configuration files. This repository contains only the **minimal, hand-maintained** configs that are worth versioning; everything else is assumed to be generated automatically by the system, tools, or installers.
 
-> License: **AGPL-3.0**
+> License: **AGPL-v3.0**
 
 ---
 
@@ -48,6 +48,7 @@ Included configurations:
 
   * `user.js` (portable preferences)
   * `extensions.txt` (reference list)
+  
 * **Fish shell**:
 
   * main config
@@ -198,7 +199,7 @@ Pull requests are welcome.
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-v3.0)**.
 
 If you redistribute or modify and provide it as a service, you must provide the source code under the same license.
 
