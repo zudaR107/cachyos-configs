@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
 # cachyos-configs installer
 # Location: <repo-root>/scripts/install.sh
-# Installs tracked configs into $XDG_CONFIG_HOME (default: ~/.config) with optional backup.
 #
-# This script manages only configs that map to ~/.config/<name>.
-# Code - OSS and Firefox require manual steps (printed at the end).
+# Behavior
+# --------
+# - Back up existing config directories before any changes.
+# - Overlay-copy tracked config directories into $XDG_CONFIG_HOME.
+# - Existing files with the same path are overwritten by repo versions.
+# - Existing files that are NOT present in the repo are kept as-is.
+#
+# This is intentionally an "overlay copy" installer:
+# it merges repo contents into existing config directories instead of replacing them.
+#
+# Requirements
+# ------------
+# - rsync
+#
+# Notes
+# -----
+# - This script manages only configs that map to ~/.config/<name>.
+# - Code - OSS and Firefox require manual steps (printed at the end).
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -15,7 +30,6 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
-MODE="symlink"        # symlink | copy
 DRY_RUN=0
 NO_BACKUP=0
 BACKUP_BASE="${XDG_STATE_HOME}/cachyos-configs-backup"
@@ -40,22 +54,20 @@ Usage:
   ./scripts/install.sh [options]
 
 Options:
-  --mode symlink|copy   Install mode. Default: symlink
   --dry-run             Print actions without changing anything
-  --no-backup           Do not create backups (destructive)
+  --no-backup           Do not create backups
   --backup-dir <path>   Override backup base directory
   -h, --help            Show this help
 
 Examples:
   ./scripts/install.sh
-  ./scripts/install.sh --mode copy
   ./scripts/install.sh --dry-run
+  ./scripts/install.sh --backup-dir "$HOME/backups/cachyos-configs"
 EOF
 }
 
 log() { printf '%s\n' "$*"; }
 
-# Print a command in a shell-safe way and run it (unless dry-run).
 run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf '[dry-run] '
@@ -70,16 +82,19 @@ run_cmd() {
   "$@"
 }
 
-die() { log "Error: $*"; exit 1; }
+die() {
+  log "Error: $*"
+  exit 1
+}
+
+require_cmd() {
+  local cmd="$1"
+  command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"
+}
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --mode)
-        [[ $# -ge 2 ]] || die "--mode requires a value"
-        MODE="$2"
-        shift 2
-        ;;
       --dry-run)
         DRY_RUN=1
         shift
@@ -102,14 +117,11 @@ parse_args() {
         ;;
     esac
   done
-
-  case "$MODE" in
-    symlink|copy) ;;
-    *) die "Invalid --mode: $MODE (use symlink or copy)" ;;
-  esac
 }
 
-timestamp() { date +"%Y%m%d-%H%M%S"; }
+timestamp() {
+  date +"%Y%m%d-%H%M%S"
+}
 
 backup_path_init() {
   local ts
@@ -117,23 +129,68 @@ backup_path_init() {
   printf '%s/%s\n' "$BACKUP_BASE" "$ts"
 }
 
-backup_one() {
-  local dest="$1"
-  local name="$2"
-  local backup_dir="$3"
+path_exists() {
+  local p="$1"
+  [[ -e "$p" || -L "$p" ]]
+}
 
-  # -e does not match broken symlinks, so also check -L
-  [[ -e "$dest" || -L "$dest" ]] || return 0
+unique_path() {
+  local base="$1"
 
-  if [[ "$NO_BACKUP" -eq 1 ]]; then
-    log " - remove: $dest"
-    run_cmd rm -rf -- "$dest"
+  if ! path_exists "$base"; then
+    printf '%s\n' "$base"
     return 0
   fi
 
-  run_cmd mkdir -p -- "$backup_dir"
-  log " - backup: $dest -> ${backup_dir}/${name}"
-  run_cmd mv -- "$dest" "${backup_dir}/${name}"
+  local i=1
+  while :; do
+    local candidate="${base}.dup${i}"
+    if ! path_exists "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    i=$((i + 1))
+  done
+}
+
+backup_one() {
+  local dest="$1"
+  local name="$2"
+
+  [[ "$NO_BACKUP" -eq 0 ]] || return 0
+  path_exists "$dest" || return 0
+
+  run_cmd mkdir -p -- "$BACKUP_DIR"
+
+  local backup_target
+  backup_target="$(unique_path "${BACKUP_DIR}/${name}")"
+
+  log " - backup: $dest -> $backup_target"
+  run_cmd cp -a -- "$dest" "$backup_target"
+}
+
+prepare_destination() {
+  local dest="$1"
+
+  if ! path_exists "$dest"; then
+    run_cmd mkdir -p -- "$dest"
+    return 0
+  fi
+
+  if [[ -d "$dest" && ! -L "$dest" ]]; then
+    return 0
+  fi
+
+  log " - destination is not a real directory: $dest"
+
+  if [[ "$NO_BACKUP" -eq 0 ]]; then
+    local base_name
+    base_name="$(basename -- "$dest")"
+    backup_one "$dest" "$base_name"
+  fi
+
+  run_cmd rm -rf -- "$dest"
+  run_cmd mkdir -p -- "$dest"
 }
 
 install_one() {
@@ -144,20 +201,12 @@ install_one() {
   [[ -d "$src" ]] || die "Missing source directory: $src"
 
   log "Install: ${name}"
-  backup_one "$dest" "$name" "$BACKUP_DIR"
 
-  run_cmd mkdir -p -- "$XDG_CONFIG_HOME"
+  backup_one "$dest" "$name"
+  prepare_destination "$dest"
 
-  case "$MODE" in
-    symlink)
-      log " - link:  $dest -> $src"
-      run_cmd ln -sfn -- "$src" "$dest"
-      ;;
-    copy)
-      log " - copy:  $src -> $dest"
-      run_cmd cp -a -- "$src" "$dest"
-      ;;
-  esac
+  log " - overlay copy: $src/ -> $dest/"
+  run_cmd rsync -a -- "${src}/" "${dest}/"
 }
 
 print_manual_steps() {
@@ -169,18 +218,17 @@ Manual steps (not installed by this script)
 1) Code - OSS
 
 Files in repo:
-  - "${REPO_ROOT}/Code - OSS/settings.jsonc"     (JSONC in repo; comments allowed)
+  - "${REPO_ROOT}/Code - OSS/settings.jsonc"
   - "${REPO_ROOT}/Code - OSS/extensions.txt"
 
 Typical settings path on Linux:
   - "\$XDG_CONFIG_HOME/Code - OSS/User/settings.json"
-    (usually "~/.config/Code - OSS/User/settings.json")
 
-Apply settings (create dirs if needed):
+Apply settings:
   mkdir -p "\$XDG_CONFIG_HOME/Code - OSS/User"
   cp -v "${REPO_ROOT}/Code - OSS/settings.jsonc" "\$XDG_CONFIG_HOME/Code - OSS/User/settings.json"
 
-Install extensions from list (choose your binary: code-oss or code):
+Install extensions:
   while IFS= read -r ext; do
     [ -z "\$ext" ] && continue
     code-oss --install-extension "\$ext" 2>/dev/null || code --install-extension "\$ext"
@@ -191,28 +239,22 @@ Install extensions from list (choose your binary: code-oss or code):
 File in repo:
   - "${REPO_ROOT}/Firefox/user.js"
 
-Place it into the ACTIVE Firefox profile directory (next to prefs.js).
-How to find profile directory:
-  - In Firefox: open "about:support" and click "Open Directory" next to "Profile Folder".
+Place it into the active Firefox profile directory.
 
 Then copy:
   cp -v "${REPO_ROOT}/Firefox/user.js" "<your-firefox-profile>/user.js"
-
-Notes:
-  - Firefox applies user.js on startup.
-  - A profile-specific path is used; do not place user.js into ~/.config.
 
 EOF
 }
 
 main() {
   parse_args "$@"
+  require_cmd rsync
 
   BACKUP_DIR="$(backup_path_init)"
 
   log "Repo:        $REPO_ROOT"
   log "Config dir:  $XDG_CONFIG_HOME"
-  log "Mode:        $MODE"
   if [[ "$NO_BACKUP" -eq 1 ]]; then
     log "Backup:      disabled"
   else
@@ -222,6 +264,8 @@ main() {
     log "Dry-run:     enabled"
   fi
   log ""
+
+  run_cmd mkdir -p -- "$XDG_CONFIG_HOME"
 
   for name in "${CONFIG_DIRS[@]}"; do
     install_one "$name"
