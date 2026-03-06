@@ -2,24 +2,28 @@
 # cachyos-configs installer
 # Location: <repo-root>/scripts/install.sh
 #
+# Scope
+# -----
+# - Back up existing configuration directories and then overlay-copy repo configs into ~/.config.
+# - Interactively offer font and package installation.
+# - Interactively offer SSH key and GPG key generation.
+# - Write SSH and GPG configuration files.
+# - Interactively configure global Git identity and optional commit signing.
+# - Print a readable summary at the end.
+#
 # Behavior
 # --------
-# - Back up existing config directories before any changes.
-# - Overlay-copy tracked config directories into $XDG_CONFIG_HOME.
-# - Existing files with the same path are overwritten by repo versions.
-# - Existing files that are NOT present in the repo are kept as-is.
-#
-# This is intentionally an "overlay copy" installer:
-# it merges repo contents into existing config directories instead of replacing them.
-#
-# Requirements
-# ------------
-# - rsync
+# - Existing config directories are backed up before they are modified.
+# - Overlay copy keeps files that already exist on the system but are not present in the repo.
+# - Package installation is opt-in per package.
+# - Font cache is refreshed only if at least one font package was selected.
+# - yay is installed only if selected or required by an AUR package.
 #
 # Notes
 # -----
-# - This script manages only configs that map to ~/.config/<name>.
-# - Code - OSS and Firefox require manual steps (printed at the end).
+# - This script is intended for CachyOS / Arch-based systems.
+# - Code - OSS and Firefox still require manual steps printed at the end.
+# - The font packages are handled in a dedicated section and are not repeated in the general package list.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -33,6 +37,7 @@ XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 DRY_RUN=0
 NO_BACKUP=0
 BACKUP_BASE="${XDG_STATE_HOME}/cachyos-configs-backup"
+PACMAN_DB_SYNCED=0
 
 CONFIG_DIRS=(
   "alacritty"
@@ -47,6 +52,69 @@ CONFIG_DIRS=(
   "starship"
   "vim"
 )
+
+FONT_PACKAGES=(
+  "ttf-ubuntu-font-family"
+  "ttf-ubuntu-mono-nerd"
+)
+
+PACKAGE_ITEMS=(
+  "telegram-desktop|pacman"
+  "yay|aur-bootstrap"
+  "lazygit|pacman"
+  "zip|pacman"
+  "unzip|pacman"
+  "unarchiver|pacman"
+  "arm-none-eabi-gcc|pacman"
+  "arm-none-eabi-gdb|pacman"
+  "arm-none-eabi-binutils|pacman"
+  "arm-none-eabi-newlib|pacman"
+  "qtcreator|pacman"
+  "lldb|pacman"
+  "code|pacman"
+  "yazi|pacman"
+  "onlyoffice-bin|aur"
+  "gnupg|pacman"
+  "pinentry|pacman"
+  "starship|pacman"
+  "rsync|pacman"
+)
+
+STATS_CONFIG_TOTAL=0
+STATS_CONFIG_UPDATED=0
+STATS_BACKUPS=0
+STATS_FILES_WRITTEN=0
+
+STATS_FONT_PROMPTED=0
+STATS_FONT_SELECTED=0
+STATS_FONT_INSTALLED=0
+STATS_FONT_ALREADY=0
+STATS_FONT_FAILED=0
+STATS_FONT_SKIPPED=0
+STATS_FONT_CACHE_REFRESHED=0
+
+STATS_PKG_PROMPTED=0
+STATS_PKG_SELECTED=0
+STATS_PKG_INSTALLED=0
+STATS_PKG_ALREADY=0
+STATS_PKG_FAILED=0
+STATS_PKG_SKIPPED=0
+
+STATS_SSH_GENERATED=0
+STATS_SSH_REUSED=0
+STATS_SSH_SKIPPED=0
+STATS_SSH_CONFIG_WRITTEN=0
+
+STATS_GPG_GENERATED=0
+STATS_GPG_SKIPPED=0
+STATS_GPG_CONFIG_WRITTEN=0
+
+STATS_GIT_CONFIGURED=0
+STATS_GIT_SIGNING_ENABLED=0
+
+GIT_NAME=""
+GIT_EMAIL=""
+GENERATED_GPG_KEY_ID=""
 
 usage() {
   cat <<'EOF'
@@ -66,7 +134,25 @@ Examples:
 EOF
 }
 
-log() { printf '%s\n' "$*"; }
+log() {
+  printf '%s\n' "$*"
+}
+
+log_section() {
+  printf '\n==> %s\n' "$*"
+}
+
+log_info() {
+  printf '  - %s\n' "$*"
+}
+
+log_warn() {
+  printf '  ! %s\n' "$*" >&2
+}
+
+log_error() {
+  printf '  x %s\n' "$*" >&2
+}
 
 run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -82,14 +168,21 @@ run_cmd() {
   "$@"
 }
 
-die() {
-  log "Error: $*"
-  exit 1
+run_shell() {
+  local cmd="$1"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] bash -lc %q\n' "$cmd"
+    return 0
+  fi
+
+  printf '+ bash -lc %q\n' "$cmd"
+  bash -lc "$cmd"
 }
 
-require_cmd() {
-  local cmd="$1"
-  command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"
+die() {
+  log_error "$*"
+  exit 1
 }
 
 parse_args() {
@@ -117,6 +210,11 @@ parse_args() {
         ;;
     esac
   done
+}
+
+require_cmd() {
+  local cmd="$1"
+  command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"
 }
 
 timestamp() {
@@ -153,24 +251,25 @@ unique_path() {
   done
 }
 
-backup_one() {
-  local dest="$1"
-  local name="$2"
+backup_copy_path() {
+  local src="$1"
+  local rel="$2"
 
   [[ "$NO_BACKUP" -eq 0 ]] || return 0
-  path_exists "$dest" || return 0
+  path_exists "$src" || return 0
 
-  run_cmd mkdir -p -- "$BACKUP_DIR"
+  local target
+  target="$(unique_path "${BACKUP_DIR}/${rel}")"
 
-  local backup_target
-  backup_target="$(unique_path "${BACKUP_DIR}/${name}")"
-
-  log " - backup: $dest -> $backup_target"
-  run_cmd cp -a -- "$dest" "$backup_target"
+  run_cmd mkdir -p -- "$(dirname -- "$target")"
+  log_info "Backup: $src -> $target"
+  run_cmd cp -a -- "$src" "$target"
+  STATS_BACKUPS=$((STATS_BACKUPS + 1))
 }
 
-prepare_destination() {
+prepare_destination_dir() {
   local dest="$1"
+  local backup_rel="$2"
 
   if ! path_exists "$dest"; then
     run_cmd mkdir -p -- "$dest"
@@ -181,32 +280,587 @@ prepare_destination() {
     return 0
   fi
 
-  log " - destination is not a real directory: $dest"
-
-  if [[ "$NO_BACKUP" -eq 0 ]]; then
-    local base_name
-    base_name="$(basename -- "$dest")"
-    backup_one "$dest" "$base_name"
-  fi
-
+  backup_copy_path "$dest" "$backup_rel"
   run_cmd rm -rf -- "$dest"
   run_cmd mkdir -p -- "$dest"
 }
 
-install_one() {
+copy_tree_overlay() {
+  local src="$1"
+  local dest="$2"
+
+  run_cmd mkdir -p -- "$dest"
+  run_cmd cp -a -- "${src}/." "${dest}/"
+}
+
+write_text_file() {
+  local path="$1"
+  local rel="$2"
+  local mode="$3"
+  local content="$4"
+
+  backup_copy_path "$path" "$rel"
+  run_cmd mkdir -p -- "$(dirname -- "$path")"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] write file: %s\n' "$path"
+  else
+    printf '%s' "$content" > "$path"
+    chmod "$mode" "$path"
+  fi
+
+  STATS_FILES_WRITTEN=$((STATS_FILES_WRITTEN + 1))
+}
+
+prompt_yes_no() {
+  local prompt="$1"
+  local default="${2:-n}"
+  local reply
+
+  while true; do
+    if [[ "$default" == "y" ]]; then
+      read -r -p "$prompt [Y/n]: " reply || true
+      reply="${reply:-y}"
+    else
+      read -r -p "$prompt [y/N]: " reply || true
+      reply="${reply:-n}"
+    fi
+
+    case "${reply,,}" in
+      y|yes) return 0 ;;
+      n|no)  return 1 ;;
+      *) log_warn "Please answer yes or no." ;;
+    esac
+  done
+}
+
+prompt_value() {
+  local prompt="$1"
+  local default="${2:-}"
+  local reply
+
+  if [[ -n "$default" ]]; then
+    read -r -p "$prompt [$default]: " reply || true
+    reply="${reply:-$default}"
+  else
+    read -r -p "$prompt: " reply || true
+  fi
+
+  printf '%s\n' "$reply"
+}
+
+sync_pacman_db_once() {
+  if [[ "$PACMAN_DB_SYNCED" -eq 0 ]]; then
+    log_info "Synchronizing pacman package databases"
+    run_cmd sudo pacman -Sy --noconfirm
+    PACMAN_DB_SYNCED=1
+  fi
+}
+
+is_package_installed() {
+  local pkg="$1"
+  pacman -Q "$pkg" >/dev/null 2>&1
+}
+
+install_pacman_package() {
+  local pkg="$1"
+
+  if is_package_installed "$pkg"; then
+    log_info "Package already installed: $pkg"
+    STATS_PKG_ALREADY=$((STATS_PKG_ALREADY + 1))
+    return 0
+  fi
+
+  sync_pacman_db_once
+
+  if run_cmd sudo pacman -S --needed --noconfirm "$pkg"; then
+    log_info "Installed package: $pkg"
+    STATS_PKG_INSTALLED=$((STATS_PKG_INSTALLED + 1))
+    return 0
+  fi
+
+  log_error "Failed to install package: $pkg"
+  STATS_PKG_FAILED=$((STATS_PKG_FAILED + 1))
+  return 1
+}
+
+install_font_package() {
+  local pkg="$1"
+
+  if is_package_installed "$pkg"; then
+    log_info "Font package already installed: $pkg"
+    STATS_FONT_ALREADY=$((STATS_FONT_ALREADY + 1))
+    return 0
+  fi
+
+  sync_pacman_db_once
+
+  if run_cmd sudo pacman -S --needed --noconfirm "$pkg"; then
+    log_info "Installed font package: $pkg"
+    STATS_FONT_INSTALLED=$((STATS_FONT_INSTALLED + 1))
+    return 0
+  fi
+
+  log_error "Failed to install font package: $pkg"
+  STATS_FONT_FAILED=$((STATS_FONT_FAILED + 1))
+  return 1
+}
+
+ensure_git_for_yay() {
+  sync_pacman_db_once
+  run_cmd sudo pacman -S --needed --noconfirm base-devel git
+}
+
+install_yay() {
+  if command -v yay >/dev/null 2>&1; then
+    log_info "yay is already installed"
+    STATS_PKG_ALREADY=$((STATS_PKG_ALREADY + 1))
+    return 0
+  fi
+
+  log_info "Installing build prerequisites for yay"
+  ensure_git_for_yay
+
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+
+  if ! run_cmd git clone https://aur.archlinux.org/yay.git "${tmpdir}/yay"; then
+    log_error "Failed to clone yay repository"
+    STATS_PKG_FAILED=$((STATS_PKG_FAILED + 1))
+    return 1
+  fi
+
+  if ! run_shell "cd '${tmpdir}/yay' && makepkg -si --noconfirm --needed"; then
+    log_error "Failed to build/install yay"
+    STATS_PKG_FAILED=$((STATS_PKG_FAILED + 1))
+    return 1
+  fi
+
+  log_info "Installed package: yay"
+  STATS_PKG_INSTALLED=$((STATS_PKG_INSTALLED + 1))
+  return 0
+}
+
+ensure_yay_available() {
+  if command -v yay >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if prompt_yes_no "Package requires yay. Install yay now?" "y"; then
+    STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+    install_yay
+    return $?
+  fi
+
+  log_warn "Skipping AUR package because yay is not available"
+  return 1
+}
+
+install_aur_package() {
+  local pkg="$1"
+
+  if is_package_installed "$pkg"; then
+    log_info "Package already installed: $pkg"
+    STATS_PKG_ALREADY=$((STATS_PKG_ALREADY + 1))
+    return 0
+  fi
+
+  if ! ensure_yay_available; then
+    STATS_PKG_SKIPPED=$((STATS_PKG_SKIPPED + 1))
+    return 1
+  fi
+
+  if run_cmd yay -S --needed --noconfirm "$pkg"; then
+    log_info "Installed package: $pkg"
+    STATS_PKG_INSTALLED=$((STATS_PKG_INSTALLED + 1))
+    return 0
+  fi
+
+  log_error "Failed to install package: $pkg"
+  STATS_PKG_FAILED=$((STATS_PKG_FAILED + 1))
+  return 1
+}
+
+install_config_dir() {
   local name="$1"
   local src="${REPO_ROOT}/${name}"
   local dest="${XDG_CONFIG_HOME}/${name}"
 
   [[ -d "$src" ]] || die "Missing source directory: $src"
 
-  log "Install: ${name}"
+  STATS_CONFIG_TOTAL=$((STATS_CONFIG_TOTAL + 1))
 
-  backup_one "$dest" "$name"
-  prepare_destination "$dest"
+  log_info "Config: $name"
+  backup_copy_path "$dest" "configs/${name}"
 
-  log " - overlay copy: $src/ -> $dest/"
-  run_cmd rsync -a -- "${src}/" "${dest}/"
+  if path_exists "$dest" && { [[ ! -d "$dest" ]] || [[ -L "$dest" ]]; }; then
+    run_cmd rm -rf -- "$dest"
+  fi
+
+  prepare_destination_dir "$dest" "configs/${name}"
+  copy_tree_overlay "$src" "$dest"
+  STATS_CONFIG_UPDATED=$((STATS_CONFIG_UPDATED + 1))
+}
+
+install_configs() {
+  log_section "Installing configuration directories"
+
+  run_cmd mkdir -p -- "$XDG_CONFIG_HOME"
+
+  for name in "${CONFIG_DIRS[@]}"; do
+    install_config_dir "$name"
+  done
+}
+
+install_fonts_interactive() {
+  log_section "Font packages"
+
+  local selected_any=0
+
+  for pkg in "${FONT_PACKAGES[@]}"; do
+    STATS_FONT_PROMPTED=$((STATS_FONT_PROMPTED + 1))
+
+    if prompt_yes_no "Install font package '${pkg}'?" "n"; then
+      STATS_FONT_SELECTED=$((STATS_FONT_SELECTED + 1))
+      selected_any=1
+      install_font_package "$pkg" || true
+    else
+      log_info "Skipped font package: $pkg"
+      STATS_FONT_SKIPPED=$((STATS_FONT_SKIPPED + 1))
+    fi
+  done
+
+  if [[ "$selected_any" -eq 1 ]]; then
+    log_info "Refreshing font cache"
+    if run_cmd fc-cache -f; then
+      STATS_FONT_CACHE_REFRESHED=1
+    else
+      log_warn "Failed to refresh font cache"
+    fi
+  else
+    log_info "No font package selected; font cache refresh skipped"
+  fi
+}
+
+install_packages_interactive() {
+  log_section "General packages"
+
+  local entry
+  for entry in "${PACKAGE_ITEMS[@]}"; do
+    local pkg="${entry%%|*}"
+    local source="${entry##*|}"
+
+    STATS_PKG_PROMPTED=$((STATS_PKG_PROMPTED + 1))
+
+    case "$source" in
+      pacman)
+        if prompt_yes_no "Install package '${pkg}' from pacman?" "n"; then
+          STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+          install_pacman_package "$pkg" || true
+        else
+          log_info "Skipped package: $pkg"
+          STATS_PKG_SKIPPED=$((STATS_PKG_SKIPPED + 1))
+        fi
+        ;;
+      aur-bootstrap)
+        if prompt_yes_no "Install package '${pkg}' (AUR helper)?" "n"; then
+          STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+          install_yay || true
+        else
+          log_info "Skipped package: $pkg"
+          STATS_PKG_SKIPPED=$((STATS_PKG_SKIPPED + 1))
+        fi
+        ;;
+      aur)
+        if prompt_yes_no "Install package '${pkg}' from AUR?" "n"; then
+          STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+          install_aur_package "$pkg" || true
+        else
+          log_info "Skipped package: $pkg"
+          STATS_PKG_SKIPPED=$((STATS_PKG_SKIPPED + 1))
+        fi
+        ;;
+      *)
+        log_warn "Unknown package source for ${pkg}: ${source}"
+        STATS_PKG_FAILED=$((STATS_PKG_FAILED + 1))
+        ;;
+    esac
+  done
+}
+
+write_ssh_config() {
+  log_section "SSH configuration"
+
+  local ssh_config
+  ssh_config=$(cat <<'EOF'
+Host *
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+  AddKeysToAgent yes
+  IdentitiesOnly yes
+  HashKnownHosts yes
+  StrictHostKeyChecking ask
+  IdentityAgent $SSH_AUTH_SOCK
+
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+EOF
+)
+
+  run_cmd mkdir -p -- "$HOME/.ssh"
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    chmod 700 "$HOME/.ssh"
+  fi
+
+  write_text_file "$HOME/.ssh/config" "files/ssh/config" 600 "${ssh_config}"$'\n'
+  STATS_SSH_CONFIG_WRITTEN=1
+  log_info "Written ~/.ssh/config"
+}
+
+generate_ssh_key_interactive() {
+  log_section "SSH key generation"
+
+  if ! prompt_yes_no "Generate SSH key '~/.ssh/id_ed25519'?" "n"; then
+    log_info "SSH key generation skipped"
+    STATS_SSH_SKIPPED=$((STATS_SSH_SKIPPED + 1))
+    return 0
+  fi
+
+  command -v ssh-keygen >/dev/null 2>&1 || die "ssh-keygen not found"
+
+  local key_path="$HOME/.ssh/id_ed25519"
+  local key_pub="${key_path}.pub"
+  local key_comment="$GIT_EMAIL"
+
+  if [[ -z "$key_comment" ]]; then
+    key_comment="$(prompt_value "SSH key comment (usually your email)" "")"
+  fi
+
+  run_cmd mkdir -p -- "$HOME/.ssh"
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    chmod 700 "$HOME/.ssh"
+  fi
+
+  if path_exists "$key_path" || path_exists "$key_pub"; then
+    if prompt_yes_no "SSH key already exists. Reuse existing key?" "y"; then
+      log_info "Reusing existing SSH key"
+      STATS_SSH_REUSED=$((STATS_SSH_REUSED + 1))
+      return 0
+    fi
+
+    if ! prompt_yes_no "Overwrite existing SSH key files?" "n"; then
+      log_info "SSH key generation skipped"
+      STATS_SSH_SKIPPED=$((STATS_SSH_SKIPPED + 1))
+      return 0
+    fi
+
+    backup_copy_path "$key_path" "files/ssh/id_ed25519"
+    backup_copy_path "$key_pub" "files/ssh/id_ed25519.pub"
+    run_cmd rm -f -- "$key_path" "$key_pub"
+  fi
+
+  log_info "ssh-keygen will now ask for the key passphrase"
+  if run_cmd ssh-keygen -t ed25519 -C "$key_comment" -f "$key_path"; then
+    log_info "Generated SSH key: $key_path"
+    STATS_SSH_GENERATED=$((STATS_SSH_GENERATED + 1))
+  else
+    log_error "Failed to generate SSH key"
+    STATS_SSH_SKIPPED=$((STATS_SSH_SKIPPED + 1))
+  fi
+}
+
+write_gpg_agent_conf() {
+  log_section "GPG agent configuration"
+
+  local gpg_conf
+  gpg_conf=$(cat <<'EOF'
+pinentry-program /usr/bin/pinentry-tty
+default-cache-ttl 2147483647
+max-cache-ttl 2147483647
+EOF
+)
+
+  run_cmd mkdir -p -- "$HOME/.gnupg"
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    chmod 700 "$HOME/.gnupg"
+  fi
+
+  write_text_file "$HOME/.gnupg/gpg-agent.conf" "files/gnupg/gpg-agent.conf" 600 "${gpg_conf}"$'\n'
+  STATS_GPG_CONFIG_WRITTEN=1
+  log_info "Written ~/.gnupg/gpg-agent.conf"
+
+  if command -v gpgconf >/dev/null 2>&1; then
+    run_cmd gpgconf --kill gpg-agent || true
+    run_cmd gpgconf --launch gpg-agent || true
+  fi
+}
+
+ensure_gpg_dependencies() {
+  local missing=0
+
+  command -v gpg >/dev/null 2>&1 || missing=1
+  [[ -x /usr/bin/pinentry-tty ]] || missing=1
+
+  if [[ "$missing" -eq 0 ]]; then
+    return 0
+  fi
+
+  log_warn "GPG prerequisites are missing (gnupg and/or pinentry)"
+  if prompt_yes_no "Install gnupg and pinentry now?" "y"; then
+    STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+    install_pacman_package "gnupg" || true
+    STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+    install_pacman_package "pinentry" || true
+  fi
+
+  command -v gpg >/dev/null 2>&1 || return 1
+  [[ -x /usr/bin/pinentry-tty ]] || return 1
+  return 0
+}
+
+list_gpg_secret_key_ids() {
+  local filter="${1:-}"
+  if [[ -n "$filter" ]]; then
+    gpg --list-secret-keys --keyid-format=long --with-colons "$filter" 2>/dev/null | awk -F: '$1=="sec"{print $5}'
+  else
+    gpg --list-secret-keys --keyid-format=long --with-colons 2>/dev/null | awk -F: '$1=="sec"{print $5}'
+  fi
+}
+
+detect_new_gpg_key_id() {
+  local filter="$1"
+  local before_file="$2"
+  local after_file="$3"
+
+  list_gpg_secret_key_ids "$filter" | sort -u > "$after_file"
+
+  if [[ -s "$before_file" ]]; then
+    comm -13 "$before_file" "$after_file" | tail -n1
+  else
+    tail -n1 "$after_file"
+  fi
+}
+
+generate_gpg_key_interactive() {
+  log_section "GPG key generation"
+
+  if ! prompt_yes_no "Generate a new GPG key?" "n"; then
+    log_info "GPG key generation skipped"
+    STATS_GPG_SKIPPED=$((STATS_GPG_SKIPPED + 1))
+    return 0
+  fi
+
+  if ! ensure_gpg_dependencies; then
+    log_error "Cannot generate GPG key because prerequisites are missing"
+    STATS_GPG_SKIPPED=$((STATS_GPG_SKIPPED + 1))
+    return 1
+  fi
+
+  if tty >/dev/null 2>&1; then
+    export GPG_TTY
+    GPG_TTY="$(tty)"
+    gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
+  fi
+
+  local email_filter="$GIT_EMAIL"
+  local before_file
+  local after_file
+  before_file="$(mktemp)"
+  after_file="$(mktemp)"
+
+  list_gpg_secret_key_ids "$email_filter" | sort -u > "$before_file"
+
+  log_info "gpg will now open interactive key generation"
+  log_info "Recommended choices: ECC -> Curve 25519, or your preferred algorithm"
+  if ! run_cmd gpg --full-generate-key; then
+    log_error "Failed to generate GPG key"
+    STATS_GPG_SKIPPED=$((STATS_GPG_SKIPPED + 1))
+    return 1
+  fi
+
+  GENERATED_GPG_KEY_ID="$(detect_new_gpg_key_id "$email_filter" "$before_file" "$after_file")"
+
+  if [[ -z "$GENERATED_GPG_KEY_ID" ]]; then
+    GENERATED_GPG_KEY_ID="$(list_gpg_secret_key_ids "$email_filter" | tail -n1)"
+  fi
+
+  if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
+    log_info "Detected new GPG key ID: $GENERATED_GPG_KEY_ID"
+    STATS_GPG_GENERATED=$((STATS_GPG_GENERATED + 1))
+  else
+    log_warn "GPG key was generated, but the key ID could not be detected automatically"
+    STATS_GPG_GENERATED=$((STATS_GPG_GENERATED + 1))
+  fi
+}
+
+ensure_git_available() {
+  if command -v git >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log_warn "git is not installed"
+  if prompt_yes_no "Install git now?" "y"; then
+    sync_pacman_db_once
+    run_cmd sudo pacman -S --needed --noconfirm git
+  fi
+
+  command -v git >/dev/null 2>&1
+}
+
+collect_git_identity() {
+  log_section "Git identity"
+
+  if ! prompt_yes_no "Configure global Git identity?" "n"; then
+    log_info "Git configuration skipped"
+    return 1
+  fi
+
+  if ! ensure_git_available; then
+    log_error "git is not available"
+    return 1
+  fi
+
+  local current_name current_email
+  current_name="$(git config --global --get user.name || true)"
+  current_email="$(git config --global --get user.email || true)"
+
+  GIT_NAME="$(prompt_value "Git user.name" "$current_name")"
+  GIT_EMAIL="$(prompt_value "Git user.email" "$current_email")"
+
+  if [[ -z "$GIT_NAME" || -z "$GIT_EMAIL" ]]; then
+    log_warn "Git name or email is empty; Git identity configuration skipped"
+    return 1
+  fi
+
+  return 0
+}
+
+configure_git() {
+  if [[ -z "$GIT_NAME" || -z "$GIT_EMAIL" ]]; then
+    return 1
+  fi
+
+  log_section "Writing Git configuration"
+
+  run_cmd git config --global user.name "$GIT_NAME"
+  run_cmd git config --global user.email "$GIT_EMAIL"
+
+  if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
+    run_cmd git config --global user.signingkey "$GENERATED_GPG_KEY_ID"
+    run_cmd git config --global commit.gpgsign true
+    run_cmd git config --global tag.gpgsign true
+    run_cmd git config --global gpg.program gpg
+    STATS_GIT_SIGNING_ENABLED=1
+    log_info "Enabled Git commit/tag signing with GPG key: $GENERATED_GPG_KEY_ID"
+  else
+    log_info "No generated GPG key detected; Git signing settings were not enabled"
+  fi
+
+  STATS_GIT_CONFIGURED=1
+  return 0
 }
 
 print_manual_steps() {
@@ -247,11 +901,72 @@ Then copy:
 EOF
 }
 
+print_summary() {
+  log_section "Summary"
+
+  log "Configuration directories:"
+  log "  Processed:        ${STATS_CONFIG_TOTAL}"
+  log "  Updated:          ${STATS_CONFIG_UPDATED}"
+
+  log ""
+  log "Backups and files:"
+  log "  Backups created:  ${STATS_BACKUPS}"
+  log "  Files written:    ${STATS_FILES_WRITTEN}"
+
+  log ""
+  log "Fonts:"
+  log "  Prompted:         ${STATS_FONT_PROMPTED}"
+  log "  Selected:         ${STATS_FONT_SELECTED}"
+  log "  Installed:        ${STATS_FONT_INSTALLED}"
+  log "  Already present:  ${STATS_FONT_ALREADY}"
+  log "  Failed:           ${STATS_FONT_FAILED}"
+  log "  Skipped:          ${STATS_FONT_SKIPPED}"
+  log "  Cache refreshed:  ${STATS_FONT_CACHE_REFRESHED}"
+
+  log ""
+  log "Packages:"
+  log "  Prompted:         ${STATS_PKG_PROMPTED}"
+  log "  Selected:         ${STATS_PKG_SELECTED}"
+  log "  Installed:        ${STATS_PKG_INSTALLED}"
+  log "  Already present:  ${STATS_PKG_ALREADY}"
+  log "  Failed:           ${STATS_PKG_FAILED}"
+  log "  Skipped:          ${STATS_PKG_SKIPPED}"
+
+  log ""
+  log "SSH:"
+  log "  Config written:   ${STATS_SSH_CONFIG_WRITTEN}"
+  log "  Keys generated:   ${STATS_SSH_GENERATED}"
+  log "  Keys reused:      ${STATS_SSH_REUSED}"
+  log "  Skipped:          ${STATS_SSH_SKIPPED}"
+
+  log ""
+  log "GPG:"
+  log "  Config written:   ${STATS_GPG_CONFIG_WRITTEN}"
+  log "  Keys generated:   ${STATS_GPG_GENERATED}"
+  log "  Skipped:          ${STATS_GPG_SKIPPED}"
+
+  log ""
+  log "Git:"
+  log "  Configured:       ${STATS_GIT_CONFIGURED}"
+  log "  Signing enabled:  ${STATS_GIT_SIGNING_ENABLED}"
+
+  if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
+    log ""
+    log "Generated GPG key ID:"
+    log "  ${GENERATED_GPG_KEY_ID}"
+  fi
+
+  log ""
+  log "Please reboot the system after the script finishes."
+}
+
 main() {
   parse_args "$@"
-  require_cmd rsync
 
   BACKUP_DIR="$(backup_path_init)"
+
+  require_cmd cp
+  require_cmd pacman
 
   log "Repo:        $REPO_ROOT"
   log "Config dir:  $XDG_CONFIG_HOME"
@@ -263,17 +978,26 @@ main() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
     log "Dry-run:     enabled"
   fi
-  log ""
 
-  run_cmd mkdir -p -- "$XDG_CONFIG_HOME"
+  install_configs
+  install_fonts_interactive
+  install_packages_interactive
 
-  for name in "${CONFIG_DIRS[@]}"; do
-    install_one "$name"
-    log ""
-  done
+  if collect_git_identity; then
+    write_ssh_config
+    generate_ssh_key_interactive
+    write_gpg_agent_conf
+    generate_gpg_key_interactive || true
+    configure_git || true
+  else
+    write_ssh_config
+    generate_ssh_key_interactive
+    write_gpg_agent_conf
+    generate_gpg_key_interactive || true
+  fi
 
   print_manual_steps
-  log "Done."
+  print_summary
 }
 
 main "$@"
