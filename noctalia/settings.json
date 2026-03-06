@@ -614,9 +614,9 @@
     },
     "ui": {
         "boxBorderEnabled": true,
-        "fontDefault": "Adwaita Sans",
+        "fontDefault": "Ubuntu",
         "fontDefaultScale": 1,
-        "fontFixed": "Adwaita Mono",
+        "fontFixed": "Ubuntu Mono",
         "fontFixedScale": 1,
         "panelBackgroundOpacity": 0.93,
         "panelsAttachedToBar": true,
