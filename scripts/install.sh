@@ -87,6 +87,8 @@ PACKAGE_ITEMS=(
   "fastfetch|pacman"
   "stlink|pacman"
   "amneziavpn-bin|aur"
+  "ex-vi-compat|pacman"
+  "neovim|pacman"
 )
 
 STATS_CONFIG_TOTAL=0
