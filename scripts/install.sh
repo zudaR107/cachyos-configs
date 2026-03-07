@@ -83,6 +83,10 @@ PACKAGE_ITEMS=(
   "rsync|pacman"
   "cliphist|pacman"
   "wlsunset|pacman"
+  "onefetch|pacman"
+  "fastfetch|pacman"
+  "stlink|pacman"
+  "amneziavpn-bin|aur"
 )
 
 STATS_CONFIG_TOTAL=0
