@@ -4,11 +4,12 @@
 #
 # Scope
 # -----
-# - Back up existing configuration directories and then overlay-copy repo configs into ~/.config.
 # - Interactively offer font and package installation.
 # - Interactively offer SSH key and GPG key generation.
 # - Write SSH and GPG configuration files.
 # - Interactively configure global Git identity and optional commit signing.
+# - Interactively offer Windows/other OS detection via os-prober and GRUB config rebuild.
+# - Back up existing configuration directories and then overlay-copy repo configs into ~/.config.
 # - Print a readable summary at the end.
 #
 # Behavior
@@ -18,12 +19,14 @@
 # - Package installation is opt-in per package.
 # - Font cache is refreshed only if at least one font package was selected.
 # - yay is installed only if selected or required by an AUR package.
+# - Configuration backup/copy is intentionally performed at the very end, after packages, keys and bootloader steps.
 #
 # Notes
 # -----
 # - This script is intended for CachyOS / Arch-based systems.
 # - Code - OSS and Firefox still require manual steps printed at the end.
 # - The font packages are handled in a dedicated section and are not repeated in the general package list.
+# - If the GRUB step is selected, the script may update /etc/default/grub to enable os-prober.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -78,6 +81,8 @@ PACKAGE_ITEMS=(
   "pinentry|pacman"
   "starship|pacman"
   "rsync|pacman"
+  "cliphist|pacman"
+  "wlsunset|pacman"
 )
 
 STATS_CONFIG_TOTAL=0
@@ -111,6 +116,13 @@ STATS_GPG_CONFIG_WRITTEN=0
 
 STATS_GIT_CONFIGURED=0
 STATS_GIT_SIGNING_ENABLED=0
+
+STATS_BOOT_PROMPTED=0
+STATS_BOOT_SCANNED=0
+STATS_BOOT_WINDOWS_FOUND=0
+STATS_BOOT_GRUB_UPDATED=0
+STATS_BOOT_SKIPPED=0
+STATS_BOOT_FAILED=0
 
 GIT_NAME=""
 GIT_EMAIL=""
@@ -178,6 +190,39 @@ run_shell() {
 
   printf '+ bash -lc %q\n' "$cmd"
   bash -lc "$cmd"
+}
+
+run_cmd_capture() {
+  local __outvar="$1"
+  shift
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '[dry-run] '
+    printf '%q ' "$@"
+    printf '\n'
+    printf -v "$__outvar" '%s' ""
+    return 0
+  fi
+
+  printf '+ '
+  printf '%q ' "$@"
+  printf '\n'
+
+  local output=""
+  if output="$("$@")"; then
+    printf -v "$__outvar" '%s' "$output"
+    if [[ -n "$output" ]]; then
+      printf '%s\n' "$output"
+    fi
+    return 0
+  fi
+
+  local status=$?
+  printf -v "$__outvar" '%s' "$output"
+  if [[ -n "$output" ]]; then
+    printf '%s\n' "$output"
+  fi
+  return "$status"
 }
 
 die() {
@@ -708,7 +753,7 @@ ensure_gpg_dependencies() {
     return 0
   fi
 
-  log_warn "GPG prerequisites are missing (gnupg and/or pinentry)"
+  log_warn "GPG prerequisites are missing (gnupg and/or pinentry-tty)"
   if prompt_yes_no "Install gnupg and pinentry now?" "y"; then
     STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
     install_pacman_package "gnupg" || true
@@ -768,6 +813,7 @@ generate_gpg_key_interactive() {
   local email_filter="$GIT_EMAIL"
   local before_file
   local after_file
+
   before_file="$(mktemp)"
   after_file="$(mktemp)"
 
@@ -776,6 +822,7 @@ generate_gpg_key_interactive() {
   log_info "gpg will now open interactive key generation"
   log_info "Recommended choices: ECC -> Curve 25519, or your preferred algorithm"
   if ! run_cmd gpg --full-generate-key; then
+    rm -f -- "$before_file" "$after_file"
     log_error "Failed to generate GPG key"
     STATS_GPG_SKIPPED=$((STATS_GPG_SKIPPED + 1))
     return 1
@@ -786,6 +833,8 @@ generate_gpg_key_interactive() {
   if [[ -z "$GENERATED_GPG_KEY_ID" ]]; then
     GENERATED_GPG_KEY_ID="$(list_gpg_secret_key_ids "$email_filter" | tail -n1)"
   fi
+
+  rm -f -- "$before_file" "$after_file"
 
   if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
     log_info "Detected new GPG key ID: $GENERATED_GPG_KEY_ID"
@@ -861,6 +910,146 @@ configure_git() {
 
   STATS_GIT_CONFIGURED=1
   return 0
+}
+
+ensure_os_prober_available() {
+  if command -v os-prober >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log_warn "os-prober is not installed"
+  if prompt_yes_no "Install os-prober now?" "y"; then
+    STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
+    install_pacman_package "os-prober" || true
+  fi
+
+  command -v os-prober >/dev/null 2>&1
+}
+
+detect_grub_cfg_path() {
+  local candidates=(
+    "/boot/grub/grub.cfg"
+    "/boot/grub2/grub.cfg"
+  )
+
+  local path
+  for path in "${candidates[@]}"; do
+    if [[ -f "$path" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+
+  for path in "${candidates[@]}"; do
+    if [[ -d "$(dirname -- "$path")" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+ensure_grub_os_prober_enabled() {
+  local grub_defaults="/etc/default/grub"
+
+  if [[ ! -f "$grub_defaults" ]]; then
+    log_warn "GRUB defaults file not found: $grub_defaults"
+    return 1
+  fi
+
+  backup_copy_path "$grub_defaults" "system/etc/default/grub"
+
+  local tmpfile
+  tmpfile="$(mktemp)"
+
+  if grep -Eq '^[[:space:]]*#?[[:space:]]*GRUB_DISABLE_OS_PROBER=' "$grub_defaults"; then
+    sed -E 's/^[[:space:]]*#?[[:space:]]*GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' \
+      "$grub_defaults" > "$tmpfile"
+  else
+    cat -- "$grub_defaults" > "$tmpfile"
+    printf '\nGRUB_DISABLE_OS_PROBER=false\n' >> "$tmpfile"
+  fi
+
+  if cmp -s -- "$grub_defaults" "$tmpfile"; then
+    log_info "GRUB os-prober setting is already enabled"
+    rm -f -- "$tmpfile"
+    return 0
+  fi
+
+  log_info "Enabling os-prober in /etc/default/grub"
+  if run_cmd sudo install -m 644 -- "$tmpfile" "$grub_defaults"; then
+    rm -f -- "$tmpfile"
+    return 0
+  fi
+
+  rm -f -- "$tmpfile"
+  return 1
+}
+
+run_bootloader_detection_interactive() {
+  log_section "Windows detection and GRUB update"
+
+  STATS_BOOT_PROMPTED=$((STATS_BOOT_PROMPTED + 1))
+
+  if ! prompt_yes_no "Search for Windows/other OSes with os-prober and rebuild GRUB config?" "n"; then
+    log_info "Bootloader step skipped"
+    STATS_BOOT_SKIPPED=$((STATS_BOOT_SKIPPED + 1))
+    return 0
+  fi
+
+  if ! ensure_os_prober_available; then
+    log_error "Cannot continue because os-prober is unavailable"
+    STATS_BOOT_FAILED=$((STATS_BOOT_FAILED + 1))
+    return 1
+  fi
+
+  if ! command -v grub-mkconfig >/dev/null 2>&1; then
+    log_error "grub-mkconfig not found; GRUB does not seem to be available"
+    STATS_BOOT_FAILED=$((STATS_BOOT_FAILED + 1))
+    return 1
+  fi
+
+  if ! ensure_grub_os_prober_enabled; then
+    log_warn "Could not update /etc/default/grub; continuing anyway"
+  fi
+
+  local os_prober_output=""
+  if run_cmd_capture os_prober_output sudo os-prober; then
+    STATS_BOOT_SCANNED=$((STATS_BOOT_SCANNED + 1))
+  else
+    log_error "os-prober failed"
+    STATS_BOOT_FAILED=$((STATS_BOOT_FAILED + 1))
+    return 1
+  fi
+
+  if grep -qi 'windows' <<< "$os_prober_output"; then
+    STATS_BOOT_WINDOWS_FOUND=1
+    log_info "Windows installation detected by os-prober"
+  elif [[ -n "$os_prober_output" ]]; then
+    log_info "Other operating systems were detected, but Windows was not found"
+  else
+    log_warn "os-prober did not report any additional operating systems"
+  fi
+
+  local grub_cfg
+  grub_cfg="$(detect_grub_cfg_path || true)"
+
+  if [[ -z "$grub_cfg" ]]; then
+    log_error "Could not determine GRUB config output path"
+    STATS_BOOT_FAILED=$((STATS_BOOT_FAILED + 1))
+    return 1
+  fi
+
+  log_info "Rebuilding GRUB configuration: $grub_cfg"
+  if run_cmd sudo grub-mkconfig -o "$grub_cfg"; then
+    STATS_BOOT_GRUB_UPDATED=1
+    return 0
+  fi
+
+  log_error "Failed to rebuild GRUB configuration"
+  STATS_BOOT_FAILED=$((STATS_BOOT_FAILED + 1))
+  return 1
 }
 
 print_manual_steps() {
@@ -950,6 +1139,15 @@ print_summary() {
   log "  Configured:       ${STATS_GIT_CONFIGURED}"
   log "  Signing enabled:  ${STATS_GIT_SIGNING_ENABLED}"
 
+  log ""
+  log "Bootloader / dual-boot:"
+  log "  Prompted:         ${STATS_BOOT_PROMPTED}"
+  log "  Scans run:        ${STATS_BOOT_SCANNED}"
+  log "  Windows found:    ${STATS_BOOT_WINDOWS_FOUND}"
+  log "  GRUB updated:     ${STATS_BOOT_GRUB_UPDATED}"
+  log "  Failed:           ${STATS_BOOT_FAILED}"
+  log "  Skipped:          ${STATS_BOOT_SKIPPED}"
+
   if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
     log ""
     log "Generated GPG key ID:"
@@ -979,7 +1177,6 @@ main() {
     log "Dry-run:     enabled"
   fi
 
-  install_configs
   install_fonts_interactive
   install_packages_interactive
 
@@ -995,6 +1192,10 @@ main() {
     write_gpg_agent_conf
     generate_gpg_key_interactive || true
   fi
+
+  run_bootloader_detection_interactive || true
+
+  install_configs
 
   print_manual_steps
   print_summary
