@@ -89,6 +89,7 @@ PACKAGE_ITEMS=(
   "amneziavpn-bin|aur"
   "ex-vi-compat|pacman"
   "neovim|pacman"
+  "pwgen|pacman"
 )
 
 STATS_CONFIG_TOTAL=0
