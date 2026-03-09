@@ -6,25 +6,29 @@
 # -----
 # - Interactively offer font and package installation.
 # - Interactively offer SSH key and GPG key generation.
-# - Write SSH and GPG configuration files.
+# - Write SSH and GPG configuration files only when the user agrees to key generation.
 # - Interactively configure global Git identity and optional commit signing.
 # - Interactively offer Windows/other OS detection via os-prober and GRUB config rebuild.
-# - Back up existing configuration directories and then overlay-copy repo configs into ~/.config.
+# - Interactively offer configuration migration for individual directories into ~/.config.
+# - Interactively offer Code - OSS settings.json installation.
 # - Print a readable summary at the end.
 #
 # Behavior
 # --------
-# - Existing config directories are backed up before they are modified.
+# - Existing configuration directories are backed up only if the user chooses to install them.
 # - Overlay copy keeps files that already exist on the system but are not present in the repo.
 # - Package installation is opt-in per package.
+# - Package order is logical: yay first, then pacman packages, then AUR packages.
 # - Font cache is refreshed only if at least one font package was selected.
 # - yay is installed only if selected or required by an AUR package.
-# - Configuration backup/copy is intentionally performed at the very end, after packages, keys and bootloader steps.
+# - Configuration migration is intentionally performed at the very end, after packages, keys and bootloader steps.
+# - Code - OSS settings are installed only if explicitly selected by the user.
 #
 # Notes
 # -----
 # - This script is intended for CachyOS / Arch-based systems.
-# - Code - OSS and Firefox still require manual steps printed at the end.
+# - Firefox still requires a manual step printed at the end.
+# - Code - OSS extensions still require manual installation printed at the end.
 # - The font packages are handled in a dedicated section and are not repeated in the general package list.
 # - If the GRUB step is selected, the script may update /etc/default/grub to enable os-prober.
 
@@ -42,18 +46,18 @@ NO_BACKUP=0
 BACKUP_BASE="${XDG_STATE_HOME}/cachyos-configs-backup"
 PACMAN_DB_SYNCED=0
 
-CONFIG_DIRS=(
-  "alacritty"
-  "fastfetch"
-  "fish"
-  "gtk-3.0"
-  "gtk-4.0"
-  "niri"
-  "noctalia"
-  "qt5ct"
-  "qt6ct"
-  "starship"
-  "vim"
+CONFIG_ITEMS=(
+  "alacritty|Alacritty"
+  "fastfetch|Fastfetch"
+  "fish|Fish shell"
+  "gtk-3.0|GTK 3"
+  "gtk-4.0|GTK 4"
+  "niri|Niri"
+  "noctalia|Noctalia"
+  "qt5ct|Qt5ct"
+  "qt6ct|Qt6ct"
+  "starship|Starship"
+  "vim|Vim"
 )
 
 FONT_PACKAGES=(
@@ -62,8 +66,9 @@ FONT_PACKAGES=(
 )
 
 PACKAGE_ITEMS=(
-  "telegram-desktop|pacman"
   "yay|aur-bootstrap"
+
+  "telegram-desktop|pacman"
   "lazygit|pacman"
   "zip|pacman"
   "unzip|pacman"
@@ -76,7 +81,6 @@ PACKAGE_ITEMS=(
   "lldb|pacman"
   "code|pacman"
   "yazi|pacman"
-  "onlyoffice-bin|aur"
   "gnupg|pacman"
   "pinentry|pacman"
   "starship|pacman"
@@ -86,14 +90,22 @@ PACKAGE_ITEMS=(
   "onefetch|pacman"
   "fastfetch|pacman"
   "stlink|pacman"
-  "amneziavpn-bin|aur"
   "ex-vi-compat|pacman"
   "neovim|pacman"
   "pwgen|pacman"
+  "bear|pacman"
+  "picocom|pacman"
+  "openocd|pacman"
+
+  "onlyoffice-bin|aur"
+  "amneziavpn-bin|aur"
 )
 
+STATS_CONFIG_PROMPTED=0
 STATS_CONFIG_TOTAL=0
 STATS_CONFIG_UPDATED=0
+STATS_CONFIG_SKIPPED=0
+
 STATS_BACKUPS=0
 STATS_FILES_WRITTEN=0
 
@@ -130,6 +142,11 @@ STATS_BOOT_WINDOWS_FOUND=0
 STATS_BOOT_GRUB_UPDATED=0
 STATS_BOOT_SKIPPED=0
 STATS_BOOT_FAILED=0
+
+STATS_CODE_PROMPTED=0
+STATS_CODE_INSTALLED=0
+STATS_CODE_SKIPPED=0
+STATS_CODE_FAILED=0
 
 GIT_NAME=""
 GIT_EMAIL=""
@@ -535,10 +552,19 @@ install_aur_package() {
 
 install_config_dir() {
   local name="$1"
+  local label="$2"
   local src="${REPO_ROOT}/${name}"
   local dest="${XDG_CONFIG_HOME}/${name}"
 
   [[ -d "$src" ]] || die "Missing source directory: $src"
+
+  STATS_CONFIG_PROMPTED=$((STATS_CONFIG_PROMPTED + 1))
+
+  if ! prompt_yes_no "Install config '${label}' into '${dest}'?" "n"; then
+    log_info "Skipped config: $name"
+    STATS_CONFIG_SKIPPED=$((STATS_CONFIG_SKIPPED + 1))
+    return 0
+  fi
 
   STATS_CONFIG_TOTAL=$((STATS_CONFIG_TOTAL + 1))
 
@@ -554,14 +580,46 @@ install_config_dir() {
   STATS_CONFIG_UPDATED=$((STATS_CONFIG_UPDATED + 1))
 }
 
-install_configs() {
-  log_section "Installing configuration directories"
+install_configs_interactive() {
+  log_section "Configuration directories"
 
   run_cmd mkdir -p -- "$XDG_CONFIG_HOME"
 
-  for name in "${CONFIG_DIRS[@]}"; do
-    install_config_dir "$name"
+  local entry
+  for entry in "${CONFIG_ITEMS[@]}"; do
+    local name="${entry%%|*}"
+    local label="${entry##*|}"
+    install_config_dir "$name" "$label"
   done
+}
+
+install_code_oss_settings_interactive() {
+  log_section "Code - OSS settings"
+
+  STATS_CODE_PROMPTED=$((STATS_CODE_PROMPTED + 1))
+
+  local src="${REPO_ROOT}/Code - OSS/settings.jsonc"
+  local dest="${XDG_CONFIG_HOME}/Code - OSS/User/settings.json"
+
+  if ! prompt_yes_no "Install Code - OSS settings.json into '${dest}'?" "n"; then
+    log_info "Skipped Code - OSS settings"
+    STATS_CODE_SKIPPED=$((STATS_CODE_SKIPPED + 1))
+    return 0
+  fi
+
+  if [[ ! -f "$src" ]]; then
+    log_error "Missing source file: $src"
+    STATS_CODE_FAILED=$((STATS_CODE_FAILED + 1))
+    return 1
+  fi
+
+  local content
+  content="$(cat -- "$src")"
+
+  write_text_file "$dest" "files/code-oss/settings.json" 644 "${content}"$'\n'
+  STATS_CODE_INSTALLED=1
+  log_info "Written Code - OSS settings: $dest"
+  return 0
 }
 
 install_fonts_interactive() {
@@ -682,6 +740,8 @@ generate_ssh_key_interactive() {
   fi
 
   command -v ssh-keygen >/dev/null 2>&1 || die "ssh-keygen not found"
+
+  write_ssh_config
 
   local key_path="$HOME/.ssh/id_ed25519"
   local key_pub="${key_path}.pub"
@@ -810,6 +870,8 @@ generate_gpg_key_interactive() {
     STATS_GPG_SKIPPED=$((STATS_GPG_SKIPPED + 1))
     return 1
   fi
+
+  write_gpg_agent_conf
 
   if tty >/dev/null 2>&1; then
     export GPG_TTY
@@ -1062,21 +1124,13 @@ run_bootloader_detection_interactive() {
 print_manual_steps() {
   cat <<EOF
 
-Manual steps (not installed by this script)
------------------------------------------
+Manual steps
+------------
 
-1) Code - OSS
+1) Code - OSS extensions
 
-Files in repo:
-  - "${REPO_ROOT}/Code - OSS/settings.jsonc"
+File in repo:
   - "${REPO_ROOT}/Code - OSS/extensions.txt"
-
-Typical settings path on Linux:
-  - "\$XDG_CONFIG_HOME/Code - OSS/User/settings.json"
-
-Apply settings:
-  mkdir -p "\$XDG_CONFIG_HOME/Code - OSS/User"
-  cp -v "${REPO_ROOT}/Code - OSS/settings.jsonc" "\$XDG_CONFIG_HOME/Code - OSS/User/settings.json"
 
 Install extensions:
   while IFS= read -r ext; do
@@ -1101,8 +1155,10 @@ print_summary() {
   log_section "Summary"
 
   log "Configuration directories:"
-  log "  Processed:        ${STATS_CONFIG_TOTAL}"
+  log "  Prompted:         ${STATS_CONFIG_PROMPTED}"
+  log "  Selected:         ${STATS_CONFIG_TOTAL}"
   log "  Updated:          ${STATS_CONFIG_UPDATED}"
+  log "  Skipped:          ${STATS_CONFIG_SKIPPED}"
 
   log ""
   log "Backups and files:"
@@ -1155,6 +1211,13 @@ print_summary() {
   log "  Failed:           ${STATS_BOOT_FAILED}"
   log "  Skipped:          ${STATS_BOOT_SKIPPED}"
 
+  log ""
+  log "Code - OSS:"
+  log "  Prompted:         ${STATS_CODE_PROMPTED}"
+  log "  Installed:        ${STATS_CODE_INSTALLED}"
+  log "  Failed:           ${STATS_CODE_FAILED}"
+  log "  Skipped:          ${STATS_CODE_SKIPPED}"
+
   if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
     log ""
     log "Generated GPG key ID:"
@@ -1188,21 +1251,18 @@ main() {
   install_packages_interactive
 
   if collect_git_identity; then
-    write_ssh_config
     generate_ssh_key_interactive
-    write_gpg_agent_conf
     generate_gpg_key_interactive || true
     configure_git || true
   else
-    write_ssh_config
     generate_ssh_key_interactive
-    write_gpg_agent_conf
     generate_gpg_key_interactive || true
   fi
 
   run_bootloader_detection_interactive || true
 
-  install_configs
+  install_configs_interactive
+  install_code_oss_settings_interactive || true
 
   print_manual_steps
   print_summary
