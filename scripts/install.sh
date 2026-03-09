@@ -1296,6 +1296,18 @@ print_summary() {
   log "  Failed:           ${STATS_CODE_EXT_FAILED}"
   log "  Skipped:          ${STATS_CODE_EXT_SKIPPED}"
 
+  if [[ -f "$HOME/.ssh/id_ed25519.pub" ]]; then
+    log ""
+    log "SSH public key:"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      log "  [dry-run] ~/.ssh/id_ed25519.pub"
+    else
+      while IFS= read -r line; do
+        log "  ${line}"
+      done < "$HOME/.ssh/id_ed25519.pub"
+    fi
+  fi
+
   if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
     log ""
     log "Generated GPG key ID:"
