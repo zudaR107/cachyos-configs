@@ -11,6 +11,7 @@
 # - Interactively offer Windows/other OS detection via os-prober and GRUB config rebuild.
 # - Interactively offer configuration migration for individual directories into ~/.config.
 # - Interactively offer Code - OSS settings.json installation.
+# - Interactively offer Code - OSS extension installation from the repository list.
 # - Print a readable summary at the end.
 #
 # Behavior
@@ -23,12 +24,12 @@
 # - yay is installed only if selected or required by an AUR package.
 # - Configuration migration is intentionally performed at the very end, after packages, keys and bootloader steps.
 # - Code - OSS settings are installed only if explicitly selected by the user.
+# - Code - OSS extensions are processed from the repo list, skipping comments and empty lines.
 #
 # Notes
 # -----
 # - This script is intended for CachyOS / Arch-based systems.
 # - Firefox still requires a manual step printed at the end.
-# - Code - OSS extensions still require manual installation printed at the end.
 # - The font packages are handled in a dedicated section and are not repeated in the general package list.
 # - If the GRUB step is selected, the script may update /etc/default/grub to enable os-prober.
 
@@ -93,9 +94,6 @@ PACKAGE_ITEMS=(
   "ex-vi-compat|pacman"
   "neovim|pacman"
   "pwgen|pacman"
-  "bear|pacman"
-  "picocom|pacman"
-  "openocd|pacman"
 
   "onlyoffice-bin|aur"
   "amneziavpn-bin|aur"
@@ -147,6 +145,13 @@ STATS_CODE_PROMPTED=0
 STATS_CODE_INSTALLED=0
 STATS_CODE_SKIPPED=0
 STATS_CODE_FAILED=0
+
+STATS_CODE_EXT_PROMPTED=0
+STATS_CODE_EXT_SELECTED=0
+STATS_CODE_EXT_INSTALLED=0
+STATS_CODE_EXT_ALREADY=0
+STATS_CODE_EXT_FAILED=0
+STATS_CODE_EXT_SKIPPED=0
 
 GIT_NAME=""
 GIT_EMAIL=""
@@ -620,6 +625,89 @@ install_code_oss_settings_interactive() {
   STATS_CODE_INSTALLED=1
   log_info "Written Code - OSS settings: $dest"
   return 0
+}
+
+detect_code_cli() {
+  if command -v code-oss >/dev/null 2>&1; then
+    printf '%s\n' "code-oss"
+    return 0
+  fi
+
+  if command -v code >/dev/null 2>&1; then
+    printf '%s\n' "code"
+    return 0
+  fi
+
+  return 1
+}
+
+is_code_extension_installed() {
+  local cli="$1"
+  local ext="$2"
+
+  "$cli" --list-extensions 2>/dev/null | grep -Fxq -- "$ext"
+}
+
+install_code_extension() {
+  local cli="$1"
+  local ext="$2"
+
+  if is_code_extension_installed "$cli" "$ext"; then
+    log_info "Code - OSS extension already installed: $ext"
+    STATS_CODE_EXT_ALREADY=$((STATS_CODE_EXT_ALREADY + 1))
+    return 0
+  fi
+
+  if run_cmd "$cli" --install-extension "$ext"; then
+    log_info "Installed Code - OSS extension: $ext"
+    STATS_CODE_EXT_INSTALLED=$((STATS_CODE_EXT_INSTALLED + 1))
+    return 0
+  fi
+
+  log_error "Failed to install Code - OSS extension: $ext"
+  STATS_CODE_EXT_FAILED=$((STATS_CODE_EXT_FAILED + 1))
+  return 1
+}
+
+install_code_oss_extensions_interactive() {
+  log_section "Code - OSS extensions"
+
+  local list_file="${REPO_ROOT}/Code - OSS/extensions.txt"
+
+  if [[ ! -f "$list_file" ]]; then
+    log_error "Missing extensions list: $list_file"
+    STATS_CODE_EXT_FAILED=$((STATS_CODE_EXT_FAILED + 1))
+    return 1
+  fi
+
+  local cli=""
+  if ! cli="$(detect_code_cli)"; then
+    log_error "Neither 'code-oss' nor 'code' command is available"
+    STATS_CODE_EXT_FAILED=$((STATS_CODE_EXT_FAILED + 1))
+    return 1
+  fi
+
+  local line=""
+  local ext=""
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    ext="${line#"${line%%[![:space:]]*}"}"
+    ext="${ext%"${ext##*[![:space:]]}"}"
+
+    [[ -n "$ext" ]] || continue
+    [[ "${ext:0:1}" == "#" ]] || {
+      STATS_CODE_EXT_PROMPTED=$((STATS_CODE_EXT_PROMPTED + 1))
+
+      if prompt_yes_no "Install Code - OSS extension '${ext}'?" "n"; then
+        STATS_CODE_EXT_SELECTED=$((STATS_CODE_EXT_SELECTED + 1))
+        install_code_extension "$cli" "$ext" || true
+      else
+        log_info "Skipped Code - OSS extension: $ext"
+        STATS_CODE_EXT_SKIPPED=$((STATS_CODE_EXT_SKIPPED + 1))
+      fi
+
+      continue
+    }
+  done < "$list_file"
 }
 
 install_fonts_interactive() {
@@ -1127,18 +1215,7 @@ print_manual_steps() {
 Manual steps
 ------------
 
-1) Code - OSS extensions
-
-File in repo:
-  - "${REPO_ROOT}/Code - OSS/extensions.txt"
-
-Install extensions:
-  while IFS= read -r ext; do
-    [ -z "\$ext" ] && continue
-    code-oss --install-extension "\$ext" 2>/dev/null || code --install-extension "\$ext"
-  done < "${REPO_ROOT}/Code - OSS/extensions.txt"
-
-2) Firefox (user.js)
+1) Firefox (user.js)
 
 File in repo:
   - "${REPO_ROOT}/Firefox/user.js"
@@ -1212,11 +1289,20 @@ print_summary() {
   log "  Skipped:          ${STATS_BOOT_SKIPPED}"
 
   log ""
-  log "Code - OSS:"
+  log "Code - OSS settings:"
   log "  Prompted:         ${STATS_CODE_PROMPTED}"
   log "  Installed:        ${STATS_CODE_INSTALLED}"
   log "  Failed:           ${STATS_CODE_FAILED}"
   log "  Skipped:          ${STATS_CODE_SKIPPED}"
+
+  log ""
+  log "Code - OSS extensions:"
+  log "  Prompted:         ${STATS_CODE_EXT_PROMPTED}"
+  log "  Selected:         ${STATS_CODE_EXT_SELECTED}"
+  log "  Installed:        ${STATS_CODE_EXT_INSTALLED}"
+  log "  Already present:  ${STATS_CODE_EXT_ALREADY}"
+  log "  Failed:           ${STATS_CODE_EXT_FAILED}"
+  log "  Skipped:          ${STATS_CODE_EXT_SKIPPED}"
 
   if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
     log ""
@@ -1263,6 +1349,7 @@ main() {
 
   install_configs_interactive
   install_code_oss_settings_interactive || true
+  install_code_oss_extensions_interactive || true
 
   print_manual_steps
   print_summary
