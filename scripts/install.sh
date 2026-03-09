@@ -25,7 +25,6 @@
 # - Configuration migration is intentionally performed at the very end, after packages, keys and bootloader steps.
 # - Code - OSS settings are installed only if explicitly selected by the user.
 # - Code - OSS extensions are processed from the repo list, skipping comments and empty lines.
-# - No manual post-install steps are printed by this script.
 #
 # Notes
 # -----
