@@ -155,6 +155,7 @@ STATS_CODE_EXT_SKIPPED=0
 
 GIT_NAME=""
 GIT_EMAIL=""
+GIT_DEFAULT_BRANCH="main"
 GENERATED_GPG_KEY_ID=""
 
 usage() {
@@ -1027,16 +1028,27 @@ collect_git_identity() {
     return 1
   fi
 
-  local current_name current_email
+  local current_name current_email current_default_branch
   current_name="$(git config --global --get user.name || true)"
   current_email="$(git config --global --get user.email || true)"
+  current_default_branch="$(git config --global --get init.defaultBranch || true)"
 
   GIT_NAME="$(prompt_value "Git user.name" "$current_name")"
   GIT_EMAIL="$(prompt_value "Git user.email" "$current_email")"
 
+  if [[ -n "$current_default_branch" ]]; then
+    GIT_DEFAULT_BRANCH="$(prompt_value "Git init.defaultBranch (default: main)" "$current_default_branch")"
+  else
+    GIT_DEFAULT_BRANCH="$(prompt_value "Git init.defaultBranch (default: main)" "main")"
+  fi
+
   if [[ -z "$GIT_NAME" || -z "$GIT_EMAIL" ]]; then
     log_warn "Git name or email is empty; Git identity configuration skipped"
     return 1
+  fi
+
+  if [[ -z "$GIT_DEFAULT_BRANCH" ]]; then
+    GIT_DEFAULT_BRANCH="main"
   fi
 
   return 0
@@ -1051,6 +1063,7 @@ configure_git() {
 
   run_cmd git config --global user.name "$GIT_NAME"
   run_cmd git config --global user.email "$GIT_EMAIL"
+  run_cmd git config --global init.defaultBranch "$GIT_DEFAULT_BRANCH"
 
   if [[ -n "$GENERATED_GPG_KEY_ID" ]]; then
     run_cmd git config --global user.signingkey "$GENERATED_GPG_KEY_ID"
@@ -1256,6 +1269,7 @@ print_summary() {
   log ""
   log "Git:"
   log "  Configured:       ${STATS_GIT_CONFIGURED}"
+  log "  Default branch:   ${GIT_DEFAULT_BRANCH}"
   log "  Signing enabled:  ${STATS_GIT_SIGNING_ENABLED}"
 
   log ""
