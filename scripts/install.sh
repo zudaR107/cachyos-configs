@@ -25,11 +25,11 @@
 # - Configuration migration is intentionally performed at the very end, after packages, keys and bootloader steps.
 # - Code - OSS settings are installed only if explicitly selected by the user.
 # - Code - OSS extensions are processed from the repo list, skipping comments and empty lines.
+# - No manual post-install steps are printed by this script.
 #
 # Notes
 # -----
 # - This script is intended for CachyOS / Arch-based systems.
-# - Firefox still requires a manual step printed at the end.
 # - The font packages are handled in a dedicated section and are not repeated in the general package list.
 # - If the GRUB step is selected, the script may update /etc/default/grub to enable os-prober.
 
@@ -689,25 +689,23 @@ install_code_oss_extensions_interactive() {
 
   local line=""
   local ext=""
-  while IFS= read -r line || [[ -n "$line" ]]; do
+  while IFS= read -r line <&3 || [[ -n "$line" ]]; do
     ext="${line#"${line%%[![:space:]]*}"}"
     ext="${ext%"${ext##*[![:space:]]}"}"
 
     [[ -n "$ext" ]] || continue
-    [[ "${ext:0:1}" == "#" ]] || {
-      STATS_CODE_EXT_PROMPTED=$((STATS_CODE_EXT_PROMPTED + 1))
+    [[ "${ext:0:1}" == "#" ]] && continue
 
-      if prompt_yes_no "Install Code - OSS extension '${ext}'?" "n"; then
-        STATS_CODE_EXT_SELECTED=$((STATS_CODE_EXT_SELECTED + 1))
-        install_code_extension "$cli" "$ext" || true
-      else
-        log_info "Skipped Code - OSS extension: $ext"
-        STATS_CODE_EXT_SKIPPED=$((STATS_CODE_EXT_SKIPPED + 1))
-      fi
+    STATS_CODE_EXT_PROMPTED=$((STATS_CODE_EXT_PROMPTED + 1))
 
-      continue
-    }
-  done < "$list_file"
+    if prompt_yes_no "Install Code - OSS extension '${ext}'?" "n"; then
+      STATS_CODE_EXT_SELECTED=$((STATS_CODE_EXT_SELECTED + 1))
+      install_code_extension "$cli" "$ext" || true
+    else
+      log_info "Skipped Code - OSS extension: $ext"
+      STATS_CODE_EXT_SKIPPED=$((STATS_CODE_EXT_SKIPPED + 1))
+    fi
+  done 3< "$list_file"
 }
 
 install_fonts_interactive() {
@@ -1209,25 +1207,6 @@ run_bootloader_detection_interactive() {
   return 1
 }
 
-print_manual_steps() {
-  cat <<EOF
-
-Manual steps
-------------
-
-1) Firefox (user.js)
-
-File in repo:
-  - "${REPO_ROOT}/Firefox/user.js"
-
-Place it into the active Firefox profile directory.
-
-Then copy:
-  cp -v "${REPO_ROOT}/Firefox/user.js" "<your-firefox-profile>/user.js"
-
-EOF
-}
-
 print_summary() {
   log_section "Summary"
 
@@ -1351,7 +1330,6 @@ main() {
   install_code_oss_settings_interactive || true
   install_code_oss_extensions_interactive || true
 
-  print_manual_steps
   print_summary
 }
 
