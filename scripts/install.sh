@@ -875,7 +875,7 @@ write_gpg_agent_conf() {
 
   local gpg_conf
   gpg_conf=$(cat <<'EOF'
-pinentry-program /usr/bin/pinentry-tty
+pinentry-program /usr/bin/pinentry-curses
 default-cache-ttl 2147483647
 max-cache-ttl 2147483647
 EOF
