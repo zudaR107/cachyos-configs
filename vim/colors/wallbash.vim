@@ -23,21 +23,21 @@ let s:t_Co = &t_Co
 " Terminal color setup
 if (has('termguicolors') && &termguicolors) || has('gui_running')
   let s:is_dark = &background == 'dark'
-  
+
   " Define terminal colors based on the background
   if s:is_dark
-    let g:terminal_ansi_colors = ['F0EAF3', '659CA3', '7C578F', '5D578F', 
+    let g:terminal_ansi_colors = ['F0EAF3', '659CA3', '7C578F', '5D578F',
                                 \ '7B65A3', '504B7D', '6C4B7D', '131313',
-                                \ 'CAC0DD', '57898F', '6C4B7D', '3F3A6B', 
+                                \ 'CAC0DD', '57898F', '6C4B7D', '3F3A6B',
                                 \ '6A578F', '3F3A6B', '5B3A6B', '030303']
   else
     " Lighter colors for light theme
-    let g:terminal_ansi_colors = ['030303', '4B787D', '5B3A6B', '3F3A6B', 
+    let g:terminal_ansi_colors = ['030303', '4B787D', '5B3A6B', '3F3A6B',
                                 \ '5C4B7D', '2D2952', '442952', '828094',
-                                \ '131313', '3A666B', '442952', '2D2952', 
+                                \ '131313', '3A666B', '442952', '2D2952',
                                 \ '4B3A6B', '2D2952', '442952', 'F0EAF3']
   endif
-  
+
   " Nvim uses g:terminal_color_{0-15} instead
   for i in range(g:terminal_ansi_colors->len())
     let g:terminal_color_{i} = g:terminal_ansi_colors[i]
@@ -46,7 +46,7 @@ endif
 
       " For Neovim compatibility
       if has('nvim')
-        " Set Neovim specific terminal colors 
+        " Set Neovim specific terminal colors
         let g:terminal_color_0 = '#' . g:terminal_ansi_colors[0]
         let g:terminal_color_1 = '#' . g:terminal_ansi_colors[1]
         let g:terminal_color_2 = '#' . g:terminal_ansi_colors[2]
@@ -72,12 +72,12 @@ function! s:inverse_color(color)
   let r = str2nr(a:color[0:1], 16)
   let g = str2nr(a:color[2:3], 16)
   let b = str2nr(a:color[4:5], 16)
-  
+
   " Calculate inverse (255 - value)
   let r_inv = 255 - r
   let g_inv = 255 - g
   let b_inv = 255 - b
-  
+
   " Convert back to hex
   return printf('%02x%02x%02x', r_inv, g_inv, b_inv)
 endfunction
@@ -103,10 +103,10 @@ function! s:update_dynamic_highlights()
   if l:bg_color != ''
     let l:bg_color = l:bg_color[1:] " Remove # from hex color
     let l:inverse = s:inverse_color(l:bg_color)
-    
+
     " Apply inverse color to selection highlights
     execute 'highlight! CursorSelection guifg=' . l:bg_color . ' guibg=#' . l:inverse
-    
+
     " Link dynamic highlights to various selection groups
     highlight! link NeoTreeCursorLine CursorSelection
     highlight! link TelescopeSelection CursorSelection
@@ -130,44 +130,44 @@ if &background == 'dark'
   hi LineNr guifg=#8F65A3 guibg=NONE gui=NONE cterm=NONE
   hi SignColumn guifg=NONE guibg=NONE gui=NONE cterm=NONE
   hi FoldColumn guifg=#080808 guibg=NONE gui=NONE cterm=NONE
-  
+
   " NeoTree with transparent background including unfocused state
   hi NeoTreeNormal guibg=NONE guifg=#030303 gui=NONE cterm=NONE
   hi NeoTreeEndOfBuffer guibg=NONE guifg=#030303 gui=NONE cterm=NONE
   hi NeoTreeFloatNormal guibg=NONE guifg=#030303 gui=NONE cterm=NONE
   hi NeoTreeFloatBorder guifg=#8F65A3 guibg=NONE gui=NONE cterm=NONE
   hi NeoTreeWinSeparator guifg=#CAC0DD guibg=NONE gui=NONE cterm=NONE
-  
+
   " NeoTree with transparent background
   hi NeoTreeNormal guibg=NONE guifg=#030303 gui=NONE cterm=NONE
   hi NeoTreeEndOfBuffer guibg=NONE guifg=#030303 gui=NONE cterm=NONE
   hi NeoTreeRootName guifg=#442952 guibg=NONE gui=bold cterm=bold
-  
+
   " TabLine highlighting with complementary accents
   hi TabLine guifg=#080808 guibg=#828094 gui=NONE cterm=NONE
   hi TabLineFill guifg=NONE guibg=NONE gui=NONE cterm=NONE
   hi TabLineSel guifg=#F0EAF3 guibg=#442952 gui=bold cterm=bold
   hi TabLineSeparator guifg=#8F65A3 guibg=#828094 gui=NONE cterm=NONE
-  
+
   " Interactive elements with dynamic contrast
   hi Search guifg=#CAC0DD guibg=#5B3A6B gui=NONE cterm=NONE
   hi Visual guifg=#CAC0DD guibg=#6C4B7D gui=NONE cterm=NONE
   hi MatchParen guifg=#CAC0DD guibg=#442952 gui=bold cterm=bold
-  
+
   " Menu item hover highlight
   hi CmpItemAbbrMatch guifg=#442952 guibg=NONE gui=bold cterm=bold
   hi CmpItemAbbrMatchFuzzy guifg=#5B3A6B guibg=NONE gui=bold cterm=bold
   hi CmpItemMenu guifg=#080808 guibg=NONE gui=italic cterm=italic
   hi CmpItemAbbr guifg=#030303 guibg=NONE gui=NONE cterm=NONE
   hi CmpItemAbbrDeprecated guifg=#131313 guibg=NONE gui=strikethrough cterm=strikethrough
-  
+
   " Specific menu highlight groups
   hi WhichKey guifg=#442952 guibg=NONE gui=NONE cterm=NONE
   hi WhichKeySeperator guifg=#131313 guibg=NONE gui=NONE cterm=NONE
   hi WhichKeyGroup guifg=#6C4B7D guibg=NONE gui=NONE cterm=NONE
   hi WhichKeyDesc guifg=#5B3A6B guibg=NONE gui=NONE cterm=NONE
   hi WhichKeyFloat guibg=#CAC0DD guifg=NONE gui=NONE cterm=NONE
-  
+
   " Selection and hover highlights with inverted colors
   hi CursorColumn guifg=NONE guibg=#828094 gui=NONE cterm=NONE
   hi Cursor guibg=#030303 guifg=#F0EAF3 gui=NONE cterm=NONE
@@ -177,13 +177,13 @@ if &background == 'dark'
   hi TermCursorNC guibg=#080808 guifg=#F0EAF3 gui=NONE cterm=NONE
   hi CursorLine guibg=NONE ctermbg=NONE gui=underline cterm=underline
   hi CursorLineNr guifg=#442952 guibg=NONE gui=bold cterm=bold
-  
+
   hi QuickFixLine guifg=#CAC0DD guibg=#6C4B7D gui=NONE cterm=NONE
   hi IncSearch guifg=#CAC0DD guibg=#442952 gui=NONE cterm=NONE
   hi NormalNC guibg=#CAC0DD guifg=#080808 gui=NONE cterm=NONE
   hi Directory guifg=#5B3A6B guibg=NONE gui=NONE cterm=NONE
   hi WildMenu guifg=#CAC0DD guibg=#442952 gui=bold cterm=bold
-  
+
   " Add highlight groups for focused items with inverted colors
   hi CursorLineFold guifg=#442952 guibg=#CAC0DD gui=NONE cterm=NONE
   hi FoldColumn guifg=#080808 guibg=NONE gui=NONE cterm=NONE
@@ -223,16 +223,16 @@ if &background == 'dark'
   hi BufferInactive guifg=#131313 guibg=#CAC0DD gui=NONE cterm=NONE
   hi BufferInactiveMod guifg=#8F65A3 guibg=#CAC0DD gui=NONE cterm=NONE
   hi BufferInactiveSign guifg=#8F65A3 guibg=#CAC0DD gui=NONE cterm=NONE
-  
+
   " Fix link colors to make them more visible
   hi link Hyperlink NONE
   hi link markdownLinkText NONE
   hi Underlined guifg=#FF00FF guibg=NONE gui=bold,underline cterm=bold,underline
   hi Special guifg=#FF00FF guibg=NONE gui=bold cterm=bold
-  hi markdownUrl guifg=#FF00FF guibg=NONE gui=underline cterm=underline 
+  hi markdownUrl guifg=#FF00FF guibg=NONE gui=underline cterm=underline
   hi markdownLinkText guifg=#FF00FF guibg=NONE gui=bold cterm=bold
   hi htmlLink guifg=#FF00FF guibg=NONE gui=bold,underline cterm=bold,underline
-  
+
   " Add more direct highlights for badges in markdown
   hi markdownH1 guifg=#FF00FF guibg=NONE gui=bold cterm=bold
   hi markdownLinkDelimiter guifg=#FF00FF guibg=NONE gui=bold cterm=bold
@@ -248,44 +248,44 @@ else
   hi LineNr guifg=#A19AE6 guibg=NONE gui=NONE cterm=NONE
   hi SignColumn guifg=NONE guibg=NONE gui=NONE cterm=NONE
   hi FoldColumn guifg=#CAC0DD guibg=NONE gui=NONE cterm=NONE
-  
+
   " NeoTree with transparent background including unfocused state
   hi NeoTreeNormal guibg=NONE guifg=#F0EAF3 gui=NONE cterm=NONE
   hi NeoTreeEndOfBuffer guibg=NONE guifg=#F0EAF3 gui=NONE cterm=NONE
   hi NeoTreeFloatNormal guibg=NONE guifg=#F0EAF3 gui=NONE cterm=NONE
   hi NeoTreeFloatBorder guifg=#B49AE6 guibg=NONE gui=NONE cterm=NONE
   hi NeoTreeWinSeparator guifg=#080808 guibg=NONE gui=NONE cterm=NONE
-  
+
   " NeoTree with transparent background
   hi NeoTreeNormal guibg=NONE guifg=#F0EAF3 gui=NONE cterm=NONE
   hi NeoTreeEndOfBuffer guibg=NONE guifg=#F0EAF3 gui=NONE cterm=NONE
   hi NeoTreeRootName guifg=#DECCFF guibg=NONE gui=bold cterm=bold
-  
+
   " TabLine highlighting with complementary accents
   hi TabLine guifg=#F0EAF3 guibg=#080808 gui=NONE cterm=NONE
   hi TabLineFill guifg=NONE guibg=NONE gui=NONE cterm=NONE
   hi TabLineSel guifg=#030303 guibg=#DECCFF gui=bold cterm=bold
   hi TabLineSeparator guifg=#A19AE6 guibg=#080808 gui=NONE cterm=NONE
-  
+
   " Interactive elements with complementary contrast
   hi Search guifg=#030303 guibg=#C2AAF0 gui=NONE cterm=NONE
   hi Visual guifg=#030303 guibg=#A19AE6 gui=NONE cterm=NONE
   hi MatchParen guifg=#030303 guibg=#DECCFF gui=bold cterm=bold
-  
+
   " Menu item hover highlight
   hi CmpItemAbbrMatch guifg=#DECCFF guibg=NONE gui=bold cterm=bold
   hi CmpItemAbbrMatchFuzzy guifg=#C2AAF0 guibg=NONE gui=bold cterm=bold
   hi CmpItemMenu guifg=#CAC0DD guibg=NONE gui=italic cterm=italic
   hi CmpItemAbbr guifg=#F0EAF3 guibg=NONE gui=NONE cterm=NONE
   hi CmpItemAbbrDeprecated guifg=#828094 guibg=NONE gui=strikethrough cterm=strikethrough
-  
+
   " Specific menu highlight groups
   hi WhichKey guifg=#DECCFF guibg=NONE gui=NONE cterm=NONE
   hi WhichKeySeperator guifg=#828094 guibg=NONE gui=NONE cterm=NONE
   hi WhichKeyGroup guifg=#B49AE6 guibg=NONE gui=NONE cterm=NONE
   hi WhichKeyDesc guifg=#C2AAF0 guibg=NONE gui=NONE cterm=NONE
   hi WhichKeyFloat guibg=#080808 guifg=NONE gui=NONE cterm=NONE
-  
+
   " Selection and hover highlights with inverted colors
   hi CursorColumn guifg=NONE guibg=#131313 gui=NONE cterm=NONE
   hi Cursor guibg=#F0EAF3 guifg=#030303 gui=NONE cterm=NONE
@@ -295,13 +295,13 @@ else
   hi TermCursorNC guibg=#080808 guifg=#F0EAF3 gui=NONE cterm=NONE
   hi CursorLine guibg=NONE ctermbg=NONE gui=underline cterm=underline
   hi CursorLineNr guifg=#DECCFF guibg=NONE gui=bold cterm=bold
-  
+
   hi QuickFixLine guifg=#030303 guibg=#C2AAF0 gui=NONE cterm=NONE
   hi IncSearch guifg=#030303 guibg=#DECCFF gui=NONE cterm=NONE
   hi NormalNC guibg=#030303 guifg=#CAC0DD gui=NONE cterm=NONE
   hi Directory guifg=#DECCFF guibg=NONE gui=NONE cterm=NONE
   hi WildMenu guifg=#030303 guibg=#DECCFF gui=bold cterm=bold
-  
+
   " Add highlight groups for focused items with inverted colors
   hi CursorLineFold guifg=#DECCFF guibg=#030303 gui=NONE cterm=NONE
   hi FoldColumn guifg=#CAC0DD guibg=NONE gui=NONE cterm=NONE
@@ -341,16 +341,16 @@ else
   hi BufferInactive guifg=#828094 guibg=#080808 gui=NONE cterm=NONE
   hi BufferInactiveMod guifg=#7B65A3 guibg=#080808 gui=NONE cterm=NONE
   hi BufferInactiveSign guifg=#7B65A3 guibg=#080808 gui=NONE cterm=NONE
-  
+
   " Fix link colors to make them more visible
   hi link Hyperlink NONE
   hi link markdownLinkText NONE
   hi Underlined guifg=#FF00FF guibg=NONE gui=bold,underline cterm=bold,underline
   hi Special guifg=#FF00FF guibg=NONE gui=bold cterm=bold
-  hi markdownUrl guifg=#FF00FF guibg=NONE gui=underline cterm=underline 
+  hi markdownUrl guifg=#FF00FF guibg=NONE gui=underline cterm=underline
   hi markdownLinkText guifg=#FF00FF guibg=NONE gui=bold cterm=bold
   hi htmlLink guifg=#FF00FF guibg=NONE gui=bold,underline cterm=bold,underline
-  
+
   " Add more direct highlights for badges in markdown
   hi markdownH1 guifg=#FF00FF guibg=NONE gui=bold cterm=bold
   hi markdownLinkDelimiter guifg=#FF00FF guibg=NONE gui=bold cterm=bold
@@ -401,19 +401,19 @@ augroup WallbashSelectionFix
     \ hi FloatBorder guibg=NONE |
     \ hi TabLineFill guibg=NONE |
     \ endif
-  
+
   " Force NeoTree background to be transparent even when unfocused
-  autocmd WinEnter,WinLeave,BufEnter,BufLeave * if &ft == 'neo-tree' || &ft == 'NvimTree' | 
+  autocmd WinEnter,WinLeave,BufEnter,BufLeave * if &ft == 'neo-tree' || &ft == 'NvimTree' |
     \ hi NeoTreeNormal guibg=NONE |
     \ hi NeoTreeEndOfBuffer guibg=NONE |
     \ endif
-    
+
   " Fix NeoTree unfocus issue specifically in LazyVim
   autocmd VimEnter,ColorScheme * hi link NeoTreeNormalNC NeoTreeNormal
-  
+
   " Make CursorLine less obtrusive by using underline instead of background
   autocmd ColorScheme * hi CursorLine guibg=NONE ctermbg=NONE gui=underline cterm=underline
-  
+
   " Make links visible across modes
   autocmd ColorScheme * if &background == 'dark' |
     \ hi Underlined guifg=#FF00FF guibg=NONE gui=bold,underline cterm=bold,underline |
@@ -422,7 +422,7 @@ augroup WallbashSelectionFix
     \ hi Underlined guifg=#FF00FF guibg=NONE gui=bold,underline cterm=bold,underline |
     \ hi Special guifg=#FF00FF guibg=NONE gui=bold cterm=bold |
     \ endif
-  
+
   " Fix markdown links specifically
   autocmd FileType markdown hi markdownUrl guifg=#FF00FF guibg=NONE gui=underline,bold
   autocmd FileType markdown hi markdownLinkText guifg=#FF00FF guibg=NONE gui=bold
@@ -437,12 +437,12 @@ augroup FixNeoTreeBackground
   autocmd ColorScheme,VimEnter,WinEnter,BufEnter * hi NeoTreeNormal guibg=NONE guifg=#030303 ctermbg=NONE
   autocmd ColorScheme,VimEnter,WinEnter,BufEnter * hi NeoTreeNormalNC guibg=NONE guifg=#080808 ctermbg=NONE
   autocmd ColorScheme,VimEnter,WinEnter,BufEnter * hi NeoTreeEndOfBuffer guibg=NONE guifg=#030303 ctermbg=NONE
-  
+
   " Also fix NvimTree for NvChad
   autocmd ColorScheme,VimEnter,WinEnter,BufEnter * hi NvimTreeNormal guibg=NONE guifg=#030303 ctermbg=NONE
   autocmd ColorScheme,VimEnter,WinEnter,BufEnter * hi NvimTreeNormalNC guibg=NONE guifg=#080808 ctermbg=NONE
   autocmd ColorScheme,VimEnter,WinEnter,BufEnter * hi NvimTreeEndOfBuffer guibg=NONE guifg=#030303 ctermbg=NONE
-  
+
   " Apply highlight based on current theme
   autocmd ColorScheme,VimEnter * if &background == 'dark' |
     \ hi NeoTreeCursorLine guibg=#2D2952 guifg=#F0EAF3 gui=bold cterm=bold |
@@ -451,7 +451,7 @@ augroup FixNeoTreeBackground
     \ hi NeoTreeCursorLine guibg=#DECCFF guifg=#030303 gui=bold cterm=bold |
     \ hi NvimTreeCursorLine guibg=#DECCFF guifg=#030303 gui=bold cterm=bold |
     \ endif
-  
+
   " Force execution after other plugins have loaded
   autocmd VimEnter * doautocmd ColorScheme
 augroup END
@@ -465,7 +465,7 @@ augroup LazyVimMarkdownFix
   autocmd FileType markdown,markdown.mdx,markdown.gfm hi! def link markdownLink MagentaLink
   autocmd FileType markdown,markdown.mdx,markdown.gfm hi! def link markdownLinkDelimiter MagentaLink
   autocmd FileType markdown,markdown.mdx,markdown.gfm hi! MagentaLink guifg=#FF00FF gui=bold,underline
-  
+
   " Apply when LazyVim is detected
   autocmd User LazyVimStarted doautocmd FileType markdown
   autocmd VimEnter * if exists('g:loaded_lazy') | doautocmd FileType markdown | endif
@@ -479,7 +479,7 @@ augroup MarkdownLinkFix
   autocmd FileType markdown hi markdownLinkText guifg=#FF00FF guibg=NONE gui=bold
   autocmd FileType markdown hi markdownIdDeclaration guifg=#FF00FF guibg=NONE gui=bold
   autocmd FileType markdown hi htmlLink guifg=#FF00FF guibg=NONE gui=bold,underline
-  
+
   " Force these highlights right after vim loads
   autocmd VimEnter * if &ft == 'markdown' | doautocmd FileType markdown | endif
 augroup END
