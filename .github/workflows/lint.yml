@@ -32,9 +32,11 @@ jobs:
           node-version: "20"
 
       - name: Install tools
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y fish shellcheck
+          sudo apt-get install -y fish shellcheck yamllint
           npm install --silent --no-save --no-package-lock jsonc-parser
 
       - name: Validate JSON and TOML
@@ -132,6 +134,23 @@ jobs:
           console.log(`OK: JSONC (${files.length} file(s))`);
           JS
 
+      - name: Lint GitHub Actions workflows
+        uses: rhysd/actionlint@v1
+
+      - name: Lint YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          yamllint -d "$(cat <<'YAML'
+          extends: default
+          rules:
+            line-length: disable
+            comments: disable
+            comments-indentation: disable
+            document-start: disable
+          YAML
+          )" .github/workflows
+
       - name: Lint Fish (syntax)
         shell: bash
         run: |
@@ -152,7 +171,7 @@ jobs:
             echo "No scripts/*.sh found, skipping."
           fi
 
-      - name: Whitespace & line endings (CRLF / trailing spaces)
+      - name: Whitespace, line endings and final newline
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -178,6 +197,10 @@ jobs:
 
               text = data.decode("utf-8", errors="strict")
 
+              if len(data) > 0 and not data.endswith(b"\n"):
+                  bad += 1
+                  print(f"[eof] {p}: missing final newline")
+
               if "\r\n" in text or "\r" in text:
                   bad += 1
                   print(f"[eol] {p}: contains CRLF/CR")
@@ -193,5 +216,5 @@ jobs:
               print(f"Failed: {bad} issue(s)")
               sys.exit(1)
 
-          print("OK: whitespace / EOL")
+          print("OK: whitespace / EOL / EOF newline")
           PY
