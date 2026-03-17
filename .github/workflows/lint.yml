@@ -36,8 +36,19 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y fish shellcheck yamllint
+          sudo apt-get install -y fish shellcheck yamllint curl
           npm install --silent --no-save --no-package-lock jsonc-parser
+
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="1.7.11"
+          curl -sSLo /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+          actionlint -version
 
       - name: Validate JSON and TOML
         run: |
@@ -135,7 +146,10 @@ jobs:
           JS
 
       - name: Lint GitHub Actions workflows
-        uses: rhysd/actionlint@v1
+        shell: bash
+        run: |
+          set -euo pipefail
+          actionlint
 
       - name: Lint YAML
         shell: bash
