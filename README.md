@@ -17,6 +17,10 @@ This repository is a curated snapshot of a real daily-driver setup built around 
 
 ![Desktop overview](assets/screenshots/desktop-overview.png)
 
+### App Launcher
+
+![App Launcher](assets/screenshots/app-launcher.png)
+
 ### Alacritty + Fastfetch
 
 ![Alacritty with Fastfetch](assets/screenshots/alacritty-fastfetch.png)
@@ -24,6 +28,10 @@ This repository is a curated snapshot of a real daily-driver setup built around 
 ### Code - OSS
 
 ![Code - OSS](assets/screenshots/code-oss.png)
+
+### Important Hotkeys
+
+![Important Hotkeys](assets/screenshots/important-hotkeys.png)
 
 ---
 
