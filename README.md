@@ -1,131 +1,218 @@
 # cachyos-configs
 
-A small, public-friendly set of **CachyOS** desktop configuration files. This repository contains only the **minimal, hand-maintained** configs that are worth versioning; everything else is assumed to be generated automatically by the system, tools, or installers.
+[![lint](https://github.com/zudaR107/cachyos-configs/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/zudaR107/cachyos-configs/actions/workflows/lint.yml)
+[![License: AGPL v3](https://img.shields.io/github/license/zudaR107/cachyos-configs)](LICENSE)
+
+A minimal, portable, public-friendly set of **CachyOS** desktop configuration files.
+
+This repository is a curated snapshot of a real daily-driver setup built around **Niri**, **Noctalia**, **Fish**, **Alacritty**, **Starship**, **GTK/Qt theming**, **Firefox**, **Code - OSS**, and a small **Vim** setup. It intentionally tracks only the configuration files that are stable, understandable, and worth keeping under version control.
 
 > License: **AGPL-v3.0**
 
 ---
 
+## Screenshots
+
+### Desktop overview
+
+![Desktop overview](assets/screenshots/desktop-overview.png)
+
+### Alacritty + Fastfetch
+
+![Alacritty with Fastfetch](assets/screenshots/alacritty-fastfetch.png)
+
+### Code - OSS
+
+![Code - OSS](assets/screenshots/code-oss.png)
+
+---
+
 ## Repository Layout
 
-```
+```text
 .
-├── alacritty/          # Terminal emulator
-├── Code - OSS/         # VS Code OSS settings and extension list
-├── fastfetch/          # System summary (neofetch-like)
-├── Firefox/            # Browser prefs and extension list
-├── fish/               # Shell configuration and functions
-├── gtk-3.0/            # GTK3 theme/font preferences
-├── gtk-4.0/            # GTK4 theme/font preferences
-├── niri/               # Wayland compositor configuration
-├── noctalia/           # Noctalia shell theme and settings
-├── qt5ct/              # Qt5 control tool config
-├── qt6ct/              # Qt6 control tool config
-├── starship/           # Prompt configuration
-└── vim/                # Vim configuration (HyDE-managed defaults + user overrides)
+├── .github/            # Issue templates, PR template, CI workflow
+├── Code - OSS/         # Code - OSS settings and extension list
+├── Firefox/            # Firefox user.js and extension list
+├── alacritty/          # Alacritty terminal config
+├── assets/             # Screenshots used by the repository
+├── fastfetch/          # Fastfetch output layout
+├── fish/               # Fish config and helper functions
+├── gtk-3.0/            # GTK 3 appearance settings
+├── gtk-4.0/            # GTK 4 appearance settings
+├── niri/               # Niri config split into topic-based includes
+├── noctalia/           # Noctalia colors and settings
+├── qt5ct/              # Qt5ct appearance config
+├── qt6ct/              # Qt6ct appearance config
+├── scripts/            # Interactive bootstrap script
+├── starship/           # Starship prompt config
+├── vim/                # Vim entrypoint, HyDE defaults, colorscheme
+├── .editorconfig       # Editor formatting rules
+├── .gitattributes      # Line ending normalization
+├── .gitignore          # Local junk / temporary files to ignore
+├── CONTRIBUTING.md     # Contribution guidelines
+├── LICENSE             # AGPL-v3.0 license text
+├── README.md           # Project overview and usage guide
+└── requirements.md     # Expected dependencies and runtime assumptions
 ```
 
 ---
 
-## What’s Included
+## What This Repository Is
 
-This repo intentionally tracks only files that are:
+This repo tracks config files that are:
 
-* **Stable** (do not change on every machine reboot)
-* **Portable** (safe to publish and reuse)
-* **Human-maintained** (edited manually, not by GUI tools)
+* **Portable** — safe to publish and reuse
+* **Curated** — intentionally selected instead of dumping an entire `~/.config`
+* **Stable enough to version** — not high-churn machine state
+* **Documented** — comments are written to explain intent, not just syntax
 
-Included configurations:
+This is **not** meant to be a full system backup.
 
-* **Alacritty**: fonts, colors, padding, scrollback, key bindings
+---
+
+## What Is Included
+
+### Desktop and shell
+
+* **Niri**: keybinds, layout, input, environment and misc behavior
+* **Noctalia**: shell colors and settings used by the desktop shell
+* **Fish**: main shell config, helper functions, aliases, abbreviations, XDG-related setup
+* **Starship**: prompt configuration
+* **Fastfetch**: custom system summary layout
+* **Alacritty**: fonts, colors, window settings, scrolling, key bindings
+
+### Appearance
+
+* **GTK 3 / GTK 4**: theme, icon, cursor and font settings
+* **qt5ct / qt6ct**: Qt appearance and interface settings
+
+### Applications
+
 * **Code - OSS**:
 
-  * `settings.json` (editor settings)
-  * `extensions.txt` (reference list)
-
-* **Fastfetch**: the printed “system summary” layout
+  * `settings.jsonc` stored in the repo as a documented source file
+  * `extensions.txt` as a reference/install list
 * **Firefox**:
 
-  * `user.js` (portable preferences)
-  * `extensions.txt` (reference list)
-  
-* **Fish shell**:
+  * `user.js` with portable preferences
+  * `extensions.txt` as a reference list
+* **Vim**:
 
-  * main config
-  * HyDE/XDG environment config
-  * small helper functions (fzf navigation, yazi wrapper, etc.)
-* **GTK 3/4**: theme/icon/font/cursor preferences
-* **Niri**: input, keybinds, layout, misc settings (split into includes)
-* **Noctalia**: color palette + settings files used by the shell
-* **qt5ct/qt6ct**: Qt platform theme and UI behavior
-* **Starship**: prompt layout
-* **Vim**: HyDE defaults + user entrypoint
+  * `vimrc` as the user entrypoint
+  * `hyde.vim` for HyDE-oriented defaults
+  * custom `wallbash.vim` colorscheme file
 
----
+### Repository support files
 
-## What’s Not Included (By Design)
-
-The following items are typically **not** tracked:
-
-* Auto-generated cache/state files
-* Machine-specific identifiers
-* Window positions, recent files, MRU lists
-* Any secrets (tokens, cookies, sync data)
-* Anything that is better managed by a package manager or the OS
-
-If you add more configs, keep the repo **clean and portable**.
+* **Bootstrap script** for interactive setup tasks
+* **CI lint workflow** for syntax and hygiene checks
+* **Issue / PR templates** for cleaner collaboration
 
 ---
 
-## Install / Use
+## What Is Not Included
 
-These configs are stored in the repository in a “portable” structure. To apply them, copy (or symlink) the relevant directories into your `$XDG_CONFIG_HOME` (usually `~/.config`).
+By design, this repository avoids tracking:
 
-### 1) Clone the repository
+* secrets or sensitive data
+* cookies, tokens, sync state, private credentials
+* cache and runtime state
+* MRU lists and recent-file history
+* machine-specific identifiers when they are not useful
+* large generated files or vendor bundles
+* config noise that changes constantly and has little long-term value
+
+If a file is mostly GUI-generated but still stable, useful, and reviewable, it can still belong here.
+
+---
+
+## Requirements
+
+This setup assumes a **CachyOS / Arch-like** environment and a Wayland desktop based on **Niri**.
+
+See [`requirements.md`](requirements.md) for the full list of:
+
+* required applications
+* helper CLI tools
+* fonts
+* themes / icons / cursor theme
+* Wayland / Qt expectations
+
+---
+
+## Installation
+
+There are three reasonable ways to use this repository.
+
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-user>/cachyos-configs.git
+git clone https://github.com/zudaR107/cachyos-configs.git
 cd cachyos-configs
 ```
 
-### 2) Copy files (simple method)
+### 2. Use the bootstrap script
+
+The repository includes an interactive bootstrap script:
 
 ```bash
-cp -a alacritty "~/.config/"
-cp -a fastfetch "~/.config/"
-cp -a fish "~/.config/"
-cp -a gtk-3.0 "~/.config/"
-cp -a gtk-4.0 "~/.config/"
-cp -a niri "~/.config/"
-cp -a noctalia "~/.config/"
-cp -a qt5ct "~/.config/"
-cp -a qt6ct "~/.config/"
-cp -a starship "~/.config/"
-cp -a vim "~/.config/"
-
-# Code - OSS (paths vary depending on distro/package)
-# - You may prefer to merge these into your existing settings.
+bash scripts/bootstrap.sh
 ```
 
-### 3) Symlink files (recommended for dotfiles)
+What it can do:
 
-Symlinks make updates trivial:
+* optionally install fonts and packages
+* optionally generate SSH and GPG keys
+* optionally configure global Git identity and signing
+* optionally scan for other OSes and rebuild GRUB config
+* optionally copy selected config directories into `~/.config`
+* optionally install Code - OSS settings and extensions
+
+Useful modes:
 
 ```bash
-ln -sfn "$PWD/alacritty"  "$HOME/.config/alacritty"
-ln -sfn "$PWD/fastfetch"  "$HOME/.config/fastfetch"
-ln -sfn "$PWD/fish"       "$HOME/.config/fish"
-ln -sfn "$PWD/gtk-3.0"    "$HOME/.config/gtk-3.0"
-ln -sfn "$PWD/gtk-4.0"    "$HOME/.config/gtk-4.0"
-ln -sfn "$PWD/niri"       "$HOME/.config/niri"
-ln -sfn "$PWD/noctalia"   "$HOME/.config/noctalia"
-ln -sfn "$PWD/qt5ct"      "$HOME/.config/qt5ct"
-ln -sfn "$PWD/qt6ct"      "$HOME/.config/qt6ct"
-ln -sfn "$PWD/starship"   "$HOME/.config/starship"
-ln -sfn "$PWD/vim"        "$HOME/.config/vim"
+bash scripts/bootstrap.sh --dry-run
+bash scripts/bootstrap.sh --no-backup
 ```
 
-> Tip: back up existing configs first if you already have them.
+> The bootstrap script is intentionally interactive. Read it before running it.
+
+### 3. Symlink configs manually
+
+This is the cleanest option if you want to keep the repository as the source of truth.
+
+```bash
+ln -sfn "$PWD/alacritty" "$HOME/.config/alacritty"
+ln -sfn "$PWD/fastfetch" "$HOME/.config/fastfetch"
+ln -sfn "$PWD/fish" "$HOME/.config/fish"
+ln -sfn "$PWD/gtk-3.0" "$HOME/.config/gtk-3.0"
+ln -sfn "$PWD/gtk-4.0" "$HOME/.config/gtk-4.0"
+ln -sfn "$PWD/niri" "$HOME/.config/niri"
+ln -sfn "$PWD/noctalia" "$HOME/.config/noctalia"
+ln -sfn "$PWD/qt5ct" "$HOME/.config/qt5ct"
+ln -sfn "$PWD/qt6ct" "$HOME/.config/qt6ct"
+ln -sfn "$PWD/starship" "$HOME/.config/starship"
+ln -sfn "$PWD/vim" "$HOME/.config/vim"
+```
+
+### 4. Copy selected directories manually
+
+```bash
+cp -a alacritty "$HOME/.config/"
+cp -a fastfetch "$HOME/.config/"
+cp -a fish "$HOME/.config/"
+cp -a gtk-3.0 "$HOME/.config/"
+cp -a gtk-4.0 "$HOME/.config/"
+cp -a niri "$HOME/.config/"
+cp -a noctalia "$HOME/.config/"
+cp -a qt5ct "$HOME/.config/"
+cp -a qt6ct "$HOME/.config/"
+cp -a starship "$HOME/.config/"
+cp -a vim "$HOME/.config/"
+```
+
+> Back up existing configs first if you already use these tools.
 
 ---
 
@@ -133,79 +220,96 @@ ln -sfn "$PWD/vim"        "$HOME/.config/vim"
 
 ### Alacritty
 
-* Location: `~/.config/alacritty/alacritty.toml`
-* Includes key bindings aligned with the author’s workflow.
+* File: `alacritty/alacritty.toml`
+* Includes colors, fonts, padding, scrollback settings and custom key bindings
 
 ### Code - OSS
 
-* `settings.json` contains editor/UI choices.
-* `extensions.txt` is a **reference list** of extension IDs.
+* Files: `Code - OSS/settings.jsonc`, `Code - OSS/extensions.txt`
+* The repository stores settings as `settings.jsonc` so the file can stay documented with comments
+* If you install it into Code - OSS, it should normally end up as `settings.json`
 
-To install extensions from `extensions.txt`:
+Install extensions from the list:
 
 ```bash
 while read -r ext; do
-  [ -z "$ext" ] && continue
+  [[ -z "$ext" || "$ext" =~ ^# ]] && continue
   code --install-extension "$ext"
 done < "Code - OSS/extensions.txt"
 ```
 
-> Depending on your package, you may need `code-oss` instead of `code`.
+> Depending on your package, the executable may be `code-oss` instead of `code`.
 
 ### Firefox
 
-* `user.js` must be placed into the **active Firefox profile directory** (next to `prefs.js`).
-* `extensions.txt` is informational and can be used as a checklist.
+* Files: `Firefox/user.js`, `Firefox/extensions.txt`
+* `user.js` must be copied into the active Firefox profile directory, next to `prefs.js`
 
 ### Fish
 
-* Main file: `~/.config/fish/config.fish`
-* Functions live under `~/.config/fish/functions/`
-
-Some helpers assume these tools are installed:
-
-* `eza` (directory listings)
-* `fzf` (interactive selection)
-* `bat` (previews)
-* `yazi` (file manager)
-* `duf` (disk usage)
+* Main file: `fish/config.fish`
+* Helper functions live in `fish/functions/`
+* Some helpers expect tools such as `eza`, `fzf`, `bat`, `yazi`, and `duf`
 
 ### Niri
 
-The config is split into topic-based files under `~/.config/niri/cfg/` and composed from `~/.config/niri/config.kdl`.
+* Main entrypoint: `niri/config.kdl`
+* Topic-based includes live under `niri/cfg/`
 
 ### Noctalia
 
-Contains the theme palette and shell settings used by Noctalia.
+* Files: `noctalia/colors.json`, `noctalia/plugins.json`, `noctalia/settings.json`
+* Stores shell palette, plugin source list, and shell behavior/settings
 
 ### Vim
 
-* `vimrc` is the user entrypoint.
-* `hyde.vim` is marked as **HyDE-managed defaults**.
+* `vim/vimrc` is the entrypoint
+* `vim/hyde.vim` contains the HyDE-oriented defaults
+* `vim/colors/wallbash.vim` provides the custom colorscheme file included in this repo
+
+---
+
+## Linting and Repository Hygiene
+
+The repository includes a GitHub Actions workflow that checks:
+
+* JSON, JSONC and TOML validity
+* GitHub Actions workflow syntax via `actionlint`
+* YAML formatting via `yamllint`
+* Fish syntax
+* shell scripts via `shellcheck` and `bash -n`
+* whitespace, line endings and final newline hygiene
+
+The goal is to keep the repository clean, reviewable, and safe to publish.
 
 ---
 
 ## Contributing
 
-If you want to contribute:
+Contributions are welcome, but keep them:
 
-* Keep changes **portable** and **documented**.
-* Avoid machine-specific values.
-* Do not commit anything that could be considered a secret.
+* portable
+* documented
+* minimal
+* free from secrets and machine-specific junk
 
-Pull requests are welcome.
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
 
 ---
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-v3.0)**.
+This project is licensed under the **GNU Affero General Public License v3.0**.
 
-If you redistribute or modify and provide it as a service, you must provide the source code under the same license.
+See [`LICENSE`](LICENSE) for the full text.
 
 ---
 
 ## Contact
 
-Email: **[cuso4ek55@gmail.com](mailto:cuso4ek55@gmail.com)**  
-Email: **[zudin_daniil@mail.ru](mailto:zudin_daniil@mail.ru)**
+For public discussion, prefer GitHub issues.
+
+For direct contact:
+
+* [cuso4ek55@gmail.com](mailto:cuso4ek55@gmail.com)
+* [zudin_daniil@mail.ru](mailto:zudin_daniil@mail.ru)
