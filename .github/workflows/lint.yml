@@ -162,6 +162,7 @@ jobs:
             comments: disable
             comments-indentation: disable
             document-start: disable
+            truthy: disable
           YAML
           )" .github/workflows
 
