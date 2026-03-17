@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# cachyos-configs installer
-# Location: <repo-root>/scripts/install.sh
+# cachyos-configs bootstrap script
+# Location: <repo-root>/scripts/bootstrap.sh
 #
 # Scope
 # -----
@@ -160,7 +160,7 @@ GENERATED_GPG_KEY_ID=""
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/install.sh [options]
+  ./scripts/bootstrap.sh [options]
 
 Options:
   --dry-run             Print actions without changing anything
@@ -169,9 +169,9 @@ Options:
   -h, --help            Show this help
 
 Examples:
-  ./scripts/install.sh
-  ./scripts/install.sh --dry-run
-  ./scripts/install.sh --backup-dir "$HOME/backups/cachyos-configs"
+  ./scripts/bootstrap.sh
+  ./scripts/bootstrap.sh --dry-run
+  ./scripts/bootstrap.sh --backup-dir "$HOME/backups/cachyos-configs"
 EOF
 }
 
@@ -900,13 +900,13 @@ ensure_gpg_dependencies() {
   local missing=0
 
   command -v gpg >/dev/null 2>&1 || missing=1
-  [[ -x /usr/bin/pinentry-tty ]] || missing=1
+  [[ -x /usr/bin/pinentry-curses ]] || missing=1
 
   if [[ "$missing" -eq 0 ]]; then
     return 0
   fi
 
-  log_warn "GPG prerequisites are missing (gnupg and/or pinentry-tty)"
+  log_warn "GPG prerequisites are missing (gnupg and/or pinentry-curses)"
   if prompt_yes_no "Install gnupg and pinentry now?" "y"; then
     STATS_PKG_SELECTED=$((STATS_PKG_SELECTED + 1))
     install_pacman_package "gnupg" || true
@@ -915,7 +915,7 @@ ensure_gpg_dependencies() {
   fi
 
   command -v gpg >/dev/null 2>&1 || return 1
-  [[ -x /usr/bin/pinentry-tty ]] || return 1
+  [[ -x /usr/bin/pinentry-curses ]] || return 1
   return 0
 }
 
@@ -1315,7 +1315,7 @@ print_summary() {
   fi
 
   log ""
-  log "Please reboot the system after the script finishes."
+  log "Re-login or reboot if some changes do not apply immediately."
 }
 
 main() {
