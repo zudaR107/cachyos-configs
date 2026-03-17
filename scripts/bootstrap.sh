@@ -94,6 +94,9 @@ PACKAGE_ITEMS=(
   "neovim|pacman"
   "pwgen|pacman"
   "tree|pacman"
+  "bear|pacman"
+  "picocom|pacman"
+  "openocd|pacman"
 
   "onlyoffice-bin|aur"
   "amneziavpn-bin|aur"
