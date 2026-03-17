@@ -58,6 +58,7 @@ This repository is a curated snapshot of a real daily-driver setup built around 
 ├── .editorconfig       # Editor formatting rules
 ├── .gitattributes      # Line ending normalization
 ├── .gitignore          # Local junk / temporary files to ignore
+├── CHANGELOG.md        # Release history and unreleased changes
 ├── CONTRIBUTING.md     # Contribution guidelines
 ├── LICENSE             # AGPL-v3.0 license text
 ├── README.md           # Project overview and usage guide
