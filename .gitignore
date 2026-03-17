@@ -1,0 +1,49 @@
+# Git ignore rules for cachyos-configs
+# Location: <repo-root>/.gitignore
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE directories
+.vscode/
+.idea/
+
+# Vim / Neovim swap and backup files
+*.swp
+*.swo
+*.swn
+*~
+*.vim~
+
+# Generic temporary / patch / merge leftovers
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local dependency directories
+node_modules/
+
+# Python cache / local tooling artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment files
+.env
+.env.*
+
+# Local archives / release artifacts
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
