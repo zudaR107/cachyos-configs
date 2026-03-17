@@ -1,0 +1,21 @@
+# Issue template chooser configuration for cachyos-configs.
+# Location: <repo-root>/.github/ISSUE_TEMPLATE/config.yml
+
+blank_issues_enabled: false
+
+contact_links:
+  - name: Read the README first
+    url: https://github.com/zudaR107/cachyos-configs/blob/main/README.md
+    about: Overview, install methods, component notes, and repository layout.
+
+  - name: Check requirements and dependencies
+    url: https://github.com/zudaR107/cachyos-configs/blob/main/requirements.md
+    about: Required apps, CLI tools, fonts, themes, and Wayland session expectations.
+
+  - name: Read contributing guidelines
+    url: https://github.com/zudaR107/cachyos-configs/blob/main/CONTRIBUTING.md
+    about: Contribution rules, portability requirements, formatting, and PR expectations.
+
+  - name: Contact the maintainer by email
+    url: mailto:cuso4ek55@gmail.com
+    about: Use email for questions that do not fit a public issue.

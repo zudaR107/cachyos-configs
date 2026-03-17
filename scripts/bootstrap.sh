@@ -93,6 +93,7 @@ PACKAGE_ITEMS=(
   "ex-vi-compat|pacman"
   "neovim|pacman"
   "pwgen|pacman"
+  "tree|pacman"
 
   "onlyoffice-bin|aur"
   "amneziavpn-bin|aur"
