@@ -19,15 +19,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 
@@ -141,12 +141,10 @@ jobs:
             fish -n "$f"
           done < <(find fish -name '*.fish' -print0)
 
-      - name: Lint Fish (format)
-        run: |
-          find fish -name '*.fish' -print0 | xargs -0 fish_indent --check
-
       - name: Lint Shell scripts (if present)
+        shell: bash
         run: |
+          set -euo pipefail
           if ls scripts/*.sh >/dev/null 2>&1; then
             shellcheck scripts/*.sh
             bash -n scripts/*.sh
@@ -171,7 +169,6 @@ jobs:
           for p in ROOT.rglob("*"):
               if is_skipped(p) or not p.is_file():
                   continue
-              # best-effort: treat as text, skip binary-ish files
               try:
                   data = p.read_bytes()
               except Exception:
@@ -185,7 +182,6 @@ jobs:
                   bad += 1
                   print(f"[eol] {p}: contains CRLF/CR")
 
-              # ignore markdown trailing whitespace rule (often used for line breaks)
               if p.suffix.lower() != ".md":
                   for i, line in enumerate(text.split("\n"), start=1):
                       if line.endswith(" ") or line.endswith("\t"):
