@@ -1,112 +1,248 @@
 # Contributing to cachyos-configs
 
-Thanks for considering a contribution. This repository is intentionally small and portable: it tracks only the minimal set of configuration files that are worth versioning for a CachyOS-based desktop.
+Thanks for considering a contribution.
+
+This repository is a curated set of desktop and application configuration files for a **CachyOS / Arch-like Wayland setup** built around **Niri**, **Noctalia**, **Fish**, **Alacritty**, **Starship**, **GTK/Qt theming**, **Firefox**, **Code - OSS**, and a small **Vim** setup.
+
+The goal is not to version an entire home directory, but to keep a small, portable, public-friendly collection of configs that are actually worth tracking.
+
+---
 
 ## Goals
 
-Contributions should:
+Contributions should help keep the repository:
 
-* Keep configs **portable** and **safe to publish**
-* Avoid machine-specific state and auto-generated noise
-* Be easy to understand and maintain
+* **portable**
+* **safe to publish**
+* **easy to review**
+* **easy to maintain**
+* **aligned with the current desktop stack and repository style**
+
+---
 
 ## What We Accept
 
-* Improvements to existing tracked configs (readability, structure, comments)
-* Small, clearly useful additions that fit the “minimal configs” idea
-* Documentation improvements (README, guides, requirements, troubleshooting)
-* Simple automation (install script, lint checks) that does not add heavy dependencies
+Good contributions include:
+
+* improvements to existing tracked configs
+* documentation updates (`README.md`, `requirements.md`, `CONTRIBUTING.md`, changelog, screenshots)
+* cleanup that improves readability or portability
+* small additions that fit the current scope of the repository
+* improvements to repository hygiene, CI, or the bootstrap script
+* stable, reviewable GUI-generated config files when they are useful and intentionally tracked
+
+---
 
 ## What We Do Not Accept
 
-* Secrets or sensitive data (tokens, cookies, sync data, private URLs, SSH keys)
-* Machine-specific identifiers (device IDs, profile IDs, telemetry IDs)
-* Frequently changing state (MRU lists, caches, history files, window geometry, timestamps)
-* Large theme packs / binaries / vendor bundles
-* Files that are primarily GUI-generated unless they are stable and reviewed
+Please do not contribute:
+
+* secrets or sensitive data
+
+  * tokens
+  * cookies
+  * private URLs
+  * credentials
+  * SSH private keys
+  * GPG private keys
+* machine-specific junk
+
+  * cache files
+  * history files
+  * recent file lists
+  * window geometry dumps
+  * timestamps and other noisy state
+* random files from a full `~/.config` copy
+* large binaries, theme bundles, archives, or vendor dumps
+* changes that make the repo harder to understand than the value they add
+
+---
+
+## Repository Scope
+
+This repository currently focuses on:
+
+* desktop and shell config (`niri`, `noctalia`, `fish`, `starship`, `alacritty`, `fastfetch`)
+* appearance config (`gtk-3.0`, `gtk-4.0`, `qt5ct`, `qt6ct`)
+* selected application config (`Firefox`, `Code - OSS`, `vim`)
+* helper repository files (`assets`, CI, issue templates, bootstrap script, docs)
+
+When proposing something new, ask:
+
+* does it belong to the current setup?
+* is it stable enough to version?
+* is it safe to publish?
+* is it understandable without private local context?
+
+If the answer is mostly “no”, it probably does not belong here.
+
+---
 
 ## Repository Structure
 
-* Configs are stored in a **portable layout** mirroring `~/.config/<app>/...`.
-* Keep new additions grouped by application (a top-level folder per app).
-* Prefer splitting large configs into smaller files if the target tool supports includes.
+General layout rules:
+
+* keep config files grouped by application at the top level
+* keep repository support files in their existing locations:
+
+  * `.github/` for templates and workflows
+  * `assets/` for screenshots and visual repository assets
+  * `scripts/` for helper scripts such as the bootstrap script
+* prefer smaller, topic-based config files when the target tool supports includes
+* do not reorganize the repo structure without a strong reason
+
+---
 
 ## Style Guidelines
 
 ### Comments and documentation
 
 * Write comments in **English**.
-* Keep comments **dry and documentation-like**.
-* Use comments to explain **intent** (why) rather than repeating syntax (what).
-* Always add a `Location:` comment near the top of each config.
+* Keep comments **documentation-like** and focused on intent.
+* Prefer explaining **why** a setting exists over repeating what the syntax already says.
+* Add a `Location:` comment near the top **when the file format supports comments**.
+* Do not force comment-style metadata into strict formats that do not support comments, such as plain JSON.
 
 ### Formatting
 
 * Use **LF** line endings.
 * Avoid trailing whitespace.
-* Prefer consistent indentation as used by the file format:
-
-  * `*.fish`: Fish conventions
-  * `*.toml`: standard TOML
-  * `*.kdl`: consistent indentation
-  * `*.json` / `*.jsonc`: stable ordering and readable spacing
+* Ensure text files end with a final newline.
+* Keep formatting consistent with the file format and surrounding file style.
+* Do not reformat unrelated files just because you touched the repository.
 
 ### Portability rules
 
-* Do not hardcode absolute paths outside of `$HOME` unless required.
-* Avoid distro-/host-specific environment variables unless necessary.
-* Do not include personal data (usernames, emails) unless required by upstream config format.
+* Avoid absolute paths outside of `$HOME` unless there is a strong reason.
+* Avoid machine-specific identifiers unless they are required and intentionally reviewed.
+* Do not add personal data unless the config format genuinely needs it.
+* Treat GUI-generated files carefully: they are acceptable only when they are stable, readable enough, and useful to keep.
 
-## Testing / Validation
+---
 
-Before opening a PR, verify that changes are syntactically valid and do not break the target tool.
+## Scripts and automation
 
-Recommended checks (run what applies):
+This repository includes `scripts/bootstrap.sh`, which is intentionally interactive.
 
-* Fish:
+When changing the bootstrap script:
 
-  * `fish -n ~/.config/fish/config.fish`
-  * `fish_indent --check` (if available)
-* TOML:
+* keep behavior understandable and reviewable
+* avoid adding heavy or surprising dependencies unless necessary
+* do not turn it into a silent one-shot installer
+* keep destructive actions explicit and opt-in
+* update documentation when behavior changes
 
-  * `taplo fmt --check` (if you use Taplo)
-* JSON:
+Changes to CI should also stay lightweight and relevant to the repository.
 
-  * `jq -e . <file>` (for strict JSON)
-  * For JSONC, validate manually or with an editor extension.
-* Niri KDL:
+---
 
-  * Restart Niri / reload config and confirm no parse errors.
+## Validation Before Opening a PR
 
-If you add scripts or CI, keep them minimal and documented.
+Before opening a pull request, run the checks that apply to your changes.
+
+Examples:
+
+### Fish
+
+```bash
+fish -n fish/config.fish
+find fish -name '*.fish' -print0 | xargs -0 -n1 fish -n
+```
+
+### Shell scripts
+
+```bash
+shellcheck scripts/*.sh
+bash -n scripts/*.sh
+```
+
+### JSON
+
+```bash
+jq -e . some-file.json
+```
+
+### TOML
+
+Use a TOML-aware parser or formatter if you have one available.
+
+### Niri / KDL
+
+* reload Niri and confirm there are no parse errors
+* verify that changed keybinds or layout settings still behave correctly
+
+### GitHub workflow / repository hygiene
+
+If you touch CI or repo support files, make sure the workflow still passes.
+
+---
+
+## Documentation Expectations
+
+If your change affects behavior, layout, requirements, setup flow, or visuals, update the relevant documentation.
+
+That may include:
+
+* `README.md`
+* `requirements.md`
+* `CONTRIBUTING.md`
+* screenshots in `assets/`
+* changelog / release notes
+
+Do not leave documentation behind when the repository behavior changes.
+
+---
 
 ## Commit Messages
 
-* Use clear, descriptive commit messages.
-* Conventional commits (e.g. `feat: ...`, `fix: ...`, `docs: ...`).
-* Sign commits (SSH/GPG).
+Use clear, descriptive commit messages.
+
+Preferred style:
+
+* conventional type prefix
+* optional scope when it helps
+* concise subject
+
+Examples:
+
+* `docs(readme): update setup instructions`
+* `ci(lint): strengthen workflow validation`
+* `refactor(scripts): rename installer to bootstrap`
+
+Signed commits are welcome.
+
+---
 
 ## Pull Request Process
 
-1. Fork the repo and create a branch:
+1. Create a focused branch.
+2. Keep the change scoped and reviewable.
+3. Test the affected files or workflow.
+4. Update documentation if needed.
+5. Open a PR with:
 
-   * `git checkout -b feat/<short-topic>` or `fix/<short-topic>`
-2. Make changes and test locally.
-3. Update documentation if behavior changes.
-4. Open a PR with:
+   * what changed
+   * why it changed
+   * any dependency or behavior impact
+   * screenshots, if the visible desktop/app result changed
 
-   * What changed
-   * Why it changed
-   * Any dependencies introduced
-   * Screenshots (optional) if UI changes are visible
+Small, focused pull requests are strongly preferred over large mixed changes.
+
+---
 
 ## Licensing
 
 By contributing, you agree that your contributions will be licensed under the repository license: **AGPL-v3.0**.
 
+See [`LICENSE`](LICENSE) for the full text.
+
+---
+
 ## Contact
 
-If you have questions or want to propose larger changes first, open an issue or contact:
+If you want to propose a larger change first, open an issue.
 
-* Email: **[cuso4ek55@gmail.com](mailto:cuso4ek55@gmail.com)**
-* Email: **[zudin_daniil@mail.ru](mailto:zudin_daniil@mail.ru)**
+For direct contact:
+
+* [cuso4ek55@gmail.com](mailto:cuso4ek55@gmail.com)
+* [zudin_daniil@mail.ru](mailto:zudin_daniil@mail.ru)
